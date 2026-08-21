@@ -1,0 +1,7 @@
+# dsh-customization-settings 组合补丁：把本插件注册进 DSH 组合树。
+# 通过 package.json 的 `dsh.bundle.patch` 指向本文件，使本包可作为一个
+# 「组合包」加入 profile 的 `dsh.profile.bundles`；也可直接把这个 insert
+# 段并入 profile 自身的 cordis.patch.yml。
+- insert:
+    - id: dsh-customization-settings
+      name: dsh-customization-settings

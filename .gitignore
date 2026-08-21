@@ -1,0 +1,15 @@
+# 依赖与构建产物
+node_modules/
+
+# 使用 pnpm（生态约定），忽略 npm 生成的锁文件
+package-lock.json
+
+# 构建产物（由 `pnpm build` 生成：lib/index.js、lib/client.js、lib/types/**）
+/lib/
+
+# TypeScript 增量构建缓存
+*.tsbuildinfo
+
+# 系统与编辑器杂项
+.DS_Store
+*.log
