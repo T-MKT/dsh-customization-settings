@@ -19,7 +19,7 @@ function AppearanceSection(_props: SettingsSectionOwnerProps): null {
  *
  * - `id: "appearance"`：非 shell 特判 id，导航图标自动回退为齿轮，
  *   与「通用设置」(`general`) 一致。
- * - `order: 5`：排在「通用设置」(0) 之后、「模型」(10) 之前。
+ * - `order: 25`：排在「智能体预设」(20) 之后，位于导航末尾（第 5 项）。
  * - `label: "外观"`：暂用字面量；后续接入 locale 服务补双语。
  */
 export function apply(ctx: ClientContext): void {
@@ -27,7 +27,7 @@ export function apply(ctx: ClientContext): void {
     {
       name: 'settings.section',
       id: 'appearance',
-      order: 5,
+      order: 25,
       label: '外观',
     },
     AppearanceSection,
