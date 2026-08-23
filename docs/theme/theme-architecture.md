@@ -221,9 +221,12 @@ src/index.ts 从空 apply 扩展为：注册 settings namespace + 注册壁纸�
 
 ### 5.5 UI 组件目录
 
+> 组件职责与数据流详见 §5.6 前端显示设计；样式遵循 DSH 原 UI（CSS Modules +
+> `--dsw-alias-*` token，见 §5.6.2）。
+
 ```
 src/client/
-├── index.ts                  # apply：注册 settings.section 外观分区
+├── index.ts                  # apply：注册 settings.section 外观分区 + theme/change 订阅
 ├── theme/
 │   ├── tokens.ts             # §5.1 映射表（单一事实来源）
 │   ├── wallpaper.ts          # §5.2 壁纸抽象 + 渲染层（CSS 变量通道）
@@ -233,14 +236,73 @@ src/client/
 │   └── service.ts            # 合成逻辑：预置层 + 用户层 → register/overrideTokens + 壁纸变量
 └── components/
     ├── ThemeSection.tsx      # 分区正文 + 视图切换（预置主题 | 我的主题 | 编辑器）
-    ├── PresetGrid.tsx        # L1 卡片网格（色板 + 壁纸缩略图，+ L3 自定义按钮）
+    ├── PresetGrid.tsx        # L1 卡片网格（色板 + 壁纸缩略图，+ L3 自定义按钮 + 跟随系统项）
     ├── SchemeList.tsx        # L3 我的主题列表
     ├── ThemeEditor.tsx       # L3 编辑器（壁纸设置区 + 主题色设置区）
     ├── WallpaperEditor.tsx   # L3 壁纸编辑：图片选择、位置切换、遮罩颜色/透明度
     └── ColorField.tsx        # 单颜色项（light/dark 双输入）
 ```
 
-### 5.6 与 theme 服务的职责边界
+### 5.6 前端显示设计（设置 → 外观）
+
+#### 5.6.1 入口与并存关系
+
+- 本插件在 `settings.section` 注册 `appearance` 分区（左侧导航「外观」，order 25），
+  该分区是主题管理的**完整页面**。
+- DSH 自带 `ui-theme` 已在「通用设置」注册了 **Appearance 行**
+  （`settings.general.item`，明暗/跟随系统的快捷切换）。二者并存、职责分工：
+  - General 里的 Appearance 行：快速切换明暗偏好（保留 shell 原样，不修改）；
+  - 本插件的「外观」分区：预置主题库、壁纸、主题色自定义的完整管理。
+- 不重复造「明暗快捷切换」：分区内的「跟随系统」入口是**主题库的一部分**
+  （作为一张卡片/置顶选项），与 General 行的语义一致但定位不同，互不冲突。
+
+#### 5.6.2 视觉风格（遵循 DSH 原 UI，AGENTS.md 约束）
+
+- **样式方案**：与 shell 一致使用 CSS Modules（哈希类名），不写全局选择器；
+  局部样式文件如 `ThemeSection.module.css`。
+- **取色**：一律引用 `--dsw-alias-*` token（`label-primary`/`bg-layer-1`/
+  `border-l1`/`interactive-bg-hover` 等），**不硬编码色值**，保证明暗两套自动适配。
+- **控件惯例**（对齐 shell 设置页实测参数）：
+  - 卡片/行：`border-radius: 12px`，表面用 `--dsw-alias-bg-layer-1`，
+    边框用 `--dsw-alias-border-l1`；
+  - 悬停态：`--dsw-alias-interactive-bg-hover`；选中态：`--dsw-alias-brand-primary`
+    描边或背景；
+  - 字号 14px / 行高 22px；按钮与表单控件风格沿用 primitives 包
+    （`@deepseek-ai/dsh-client-ui-primitives`，settings-general 同源依赖）。
+- **布局**：分区正文为单列滚动内容区（与 General/Models 页一致），
+  卡片网格用 CSS Grid（自适应列宽，窄屏降为单列）。
+
+#### 5.6.3 组件数据流
+
+```
+ThemeSection（settings.section 分区正文）
+├── props：SettingsSectionOwnerProps（close 等）
+├── 视图状态：useState('presets' | 'schemes' | 'editor')（内存态）
+├── 订阅：ctx.on('theme/change', ...) → 快照驱动卡片高亮与预览区
+└── 数据读写：settingsScope 绑定本插件 namespace（activeThemeId / 自定义方案）
+     ├── PresetGrid：PRESETS 常量 + activeThemeId → 高亮；
+     │              点击 → service.applyTheme(id)（setTheme + 壁纸层）
+     ├── SchemeList：settingsScope.listCustomThemes() → 列表
+     └── ThemeEditor：编辑会话（内存态）→ 保存时 settingsScope.saveCustomTheme
+```
+
+- 所有组件通过 props 接收数据/回调，不在组件内直接 `ctx.get`（与 shell 的
+  `PropsStore`/`PropsRuntime` 组合模式对齐）；store 形状参考 ui-theme 的
+  `createAppearanceRowStore`（`EngineStoreHandle` + `sync` 动作）。
+- 壁纸渲染层独立于 React 树：`service.ts` 在 apply 层持有 CSS 变量写入口，
+  组件只负责「告诉 service 当前激活主题」，不直接碰 DOM。
+
+#### 5.6.4 明暗与壁纸呈现
+
+- **跟随系统**：主题库顶部固定一项「跟随系统」（图标 + 文字），当前为 system 时高亮；
+  明暗快照由 `theme/change` 驱动，无需页面自行检测。
+- **卡片明暗预览**：每张卡片色板区以双行色块展示 light/dark 两组主色
+  （品牌色 + 背景层级），缩略图用 `--cst-wallpaper-*` 渲染小背景
+  （无壁纸主题显示纯色）。
+- **编辑器明暗切换**：编辑器内提供 light/dark 分段切换（与卡片预览一致），
+  编辑中的值分别对应 TokenSet 的 `tokens[token].light/.dark`。
+
+### 5.7 与 theme 服务的职责边界
 
 | 动作 | 使用方 |
 |---|---|
@@ -282,11 +344,16 @@ src/client/
 - 预置壁纸图片作为插件内置资源（打包静态资源或 data URI 常量），随 bundle 分发，
   不依赖网络。
 - 预置数据以常量 `PRESETS: Theme[]` 存放，L3 的「从预置起步」直接消费同一数组。
-- UI 挂在 `settings.section` 的 `appearance` 分区内（已注册），正文从空占位替换为卡片网格。
+- UI 挂在 `settings.section` 的 `appearance` 分区内（已注册），正文从空占位替换为
+  卡片网格；呈现细节（卡片样式、色板预览、跟随系统项）遵循 §5.6 前端显示设计。
+- 前端显示验收还需覆盖：外观分区在左侧导航正确显示（order 25）、与 General 的
+  Appearance 行并存不冲突、明暗两套下卡片文字可读。
 
 ### 6.4 验收标准
 
 - [ ] 设置 → 外观 中能看到 ≥4 套预置主题卡片与「跟随系统」，有壁纸的主题缩略图正确
+- [ ] 外观分区在左侧导航显示且与 General 的 Appearance 行并存不冲突
+- [ ] 卡片在明暗两套配色下文字/色板均可读（全部用 `--dsw-alias-*` token，无硬编码色值）
 - [ ] 点击卡片：主题色与壁纸同时应用，全 UI 即时变化，刷新后保持
 - [ ] 明暗两套配色均正确（无缺失 token、无裸字符串错误）
 - [ ] 壁纸遮罩保证文字可读（深色遮罩覆盖浅色图片时正文仍清晰）
@@ -325,16 +392,19 @@ src/client/
 
 ### 7.3 UI 结构（均在「外观」分区内）
 
+> 分区整体呈现规范见 §5.6（入口并存、视觉风格、数据流、明暗呈现）；此处为编辑器视图的细化结构。
+
 ```
 外观（settings.section: appearance）
-├── 视图切换：预置主题 | 我的主题（分段控件）
-├── [预置视图] 预置卡片网格（L1 卡片 + 每张卡「自定义」按钮）
+├── 视图切换：预置主题 | 我的主题（分段控件，样式对齐 shell 分段控件）
+├── [预置视图] 预置卡片网格（L1 卡片 + 每张卡「自定义」按钮 + 顶部「跟随系统」项）
 ├── [我的视图] 方案列表（新建 / 重命名 / 删除 / 设为当前）
 └── [编辑器视图]（从卡片或方案进入）
-    ├── 顶栏：方案名、保存、导出、恢复默认
-    ├── 预览区：实时色板 + 壁纸预览（随编辑更新）
+    ├── 顶栏：方案名（可编辑）、保存、导出、恢复默认
+    ├── 预览区：实时色板 + 壁纸预览（随编辑更新，明暗双态切换）
     ├── 编辑区
-    │   ├── 壁纸段：图片选择 / 位置切换 / 遮罩颜色 + 透明度滑块（L3-F2）
+    │   ├── 壁纸段：图片选择（上传/URL/内置资源）/ 位置切换（全屏/对话区）/
+    │   │        遮罩颜色 + 透明度滑块（L3-F2）
     │   └── 主题色段：颜色分组（品牌/背景/文字/边框/状态/侧边栏），
     │        每项 light/dark 两个 ColorField（L3-F3）
     └── 底部：取消（丢弃未保存编辑）
@@ -352,6 +422,9 @@ src/client/
   转为相对引用，导入时重建资产。
 - 事件流：编辑 → 预览层 → `theme/change` + 壁纸变量更新 → 预览区/卡片刷新；
   卸载时 disposer 移除预览层与壁纸变量。
+- **前端显示实现**：所有组件遵循 §5.6.3 的 props 模式（数据经 props 注入，
+  store 形状对齐 shell 的 `EngineStoreHandle`）；编辑器内的分段控件、按钮、
+  表单样式复用 primitives 包，不新造控件。
 
 ### 7.5 验收标准
 
