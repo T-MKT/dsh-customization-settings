@@ -5,6 +5,7 @@ import { createThemeService } from './theme/service.js'
 import type { ThemeService } from './theme/service.js'
 import { bindThemeStore } from './theme/store.js'
 import { ThemeSection } from './components/ThemeSection.js'
+import { installAppearanceEntryLink } from './appearanceEntryLink.js'
 
 /** 必填服务：slots 注册设置分区；settingsScope 绑定主题偏好；theme 合成主题色板。 */
 export const inject = ['slots', 'settingsScope', 'theme']
@@ -25,6 +26,9 @@ export function apply(ctx: ClientContext): void {
   const store = bindThemeStore(ctx)
   const service = createThemeService(ctx, store)
   ctx.effect(() => () => service.dispose())
+
+  // 在「通用设置 → 外观」快捷行内注入指向本「外观」分区的入口链接。
+  ctx.effect(() => installAppearanceEntryLink())
 
   const injected = (): { service: ThemeService; presets: readonly Theme[] } => ({
     service,
