@@ -26,6 +26,7 @@ const CLIENT_EXTERNALS: readonly string[] = [
   '@deepseek-ai/cordis',
   '@deepseek-ai/dsh-client-runtime/client',
   '@deepseek-ai/dsh-client-ui-slots',
+  '@deepseek-ai/dsh-client-ui-settings/client',
 ]
 
 /** 宿主半：无宿主行为，仅产出 ESM 入口。 */

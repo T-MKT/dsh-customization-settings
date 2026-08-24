@@ -1,6 +1,17 @@
+import type { Context } from '@deepseek-ai/cordis'
+import { settingsNamespace } from '@deepseek-ai/dsh-settings'
+import { THEME_SETTINGS_NAMESPACE, ThemeSettingsSchema } from './settings.js'
+
+/** Branded settings namespace, derived from the shared constant. */
+const themeSettingsNs = settingsNamespace(THEME_SETTINGS_NAMESPACE)
+
 /**
- * 宿主加载器入口，指向 `./client` 导出的浏览器实现。
- * 本插件目前为纯 UI（客户端）能力，宿主侧无任何行为；后续壁纸/主题色等
- * 需要持久化设置时，再在此处注册 settings namespace。
+ * Host: register the appearance settings namespace when the settings service
+ * is composed. Registration is an effect on this plugin's fiber and is cleaned
+ * up when the fiber unloads. The returned scope is not used here; reads happen
+ * on the client over the wire.
  */
-export function apply(): void {}
+export function apply(ctx: Context): void {
+  const settings = ctx.get('settings')
+  if (settings) settings.register(themeSettingsNs, ThemeSettingsSchema)
+}
