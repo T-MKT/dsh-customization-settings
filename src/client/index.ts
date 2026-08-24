@@ -1,35 +1,44 @@
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import type { SettingsSectionOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
+import { PRESETS } from './theme/presets.js'
+import type { Theme } from './theme/spec.js'
+import { createThemeService } from './theme/service.js'
+import type { ThemeService } from './theme/service.js'
+import { bindThemeStore } from './theme/store.js'
+import { ThemeSection } from './components/ThemeSection.js'
 
-/** 必填服务：浏览器半依赖 slots 服务注册设置分区。 */
-export const inject = ['slots']
-
-/**
- * 「外观」设置分区正文。
- *
- * 当前为空：后续「壁纸 / 主题色 / 字体与排版 / 模糊材质」等条目会作为
- * `settings.section` 内的行或子页面逐步填入（见 TODO.md）。
- */
-function AppearanceSection(_props: SettingsSectionOwnerProps): null {
-  return null
-}
+/** 必填服务：slots 注册设置分区；settingsScope 绑定主题偏好；theme 合成主题色板。 */
+export const inject = ['slots', 'settingsScope', 'theme']
 
 /**
- * 在设置面板左侧导航注册「外观」大类。
+ * 组装「外观」设置分区（架构 §5.6.3 / plan 提交点 5）：
  *
- * - `id: "appearance"`：非 shell 特判 id，导航图标自动回退为齿轮，
- *   与「通用设置」(`general`) 一致。
- * - `order: 25`：排在「智能体预设」(20) 之后，位于导航末尾（第 5 项）。
- * - `label: "外观"`：暂用字面量；后续接入 locale 服务补双语。
+ * 1. `bindThemeStore(ctx)` → store（settings scope，随 fiber 自动清理）；
+ * 2. `createThemeService(ctx, store)` → service（注册预置、订阅 theme/change、
+ *    应用色板 + 壁纸）；其内部 disposer 经 `ctx.effect` 挂到本 fiber，插件
+ *    停用时全部释放；
+ * 3. 在 `settings.section` 注册 `appearance` 分区（order 25），正文渲染
+ *    ThemeSection——service 与 PRESETS 经注册的 `inject` 业务面注入组件，
+ *    组件内不 `ctx.get`；
+ * 4. 分区注册经 `ctx.slots.inject` 挂到 fiber，停用时随声明级联清理。
  */
 export function apply(ctx: ClientContext): void {
+  const store = bindThemeStore(ctx)
+  const service = createThemeService(ctx, store)
+  ctx.effect(() => () => service.dispose())
+
+  const injected = (): { service: ThemeService; presets: readonly Theme[] } => ({
+    service,
+    presets: PRESETS,
+  })
+
   ctx.slots.inject('settings.section', () => ctx.slots.register(
     {
       name: 'settings.section',
       id: 'appearance',
       order: 25,
       label: '外观',
+      inject: injected,
     },
-    AppearanceSection,
+    ThemeSection,
   ))
 }
