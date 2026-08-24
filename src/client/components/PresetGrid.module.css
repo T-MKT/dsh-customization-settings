@@ -1,0 +1,132 @@
+/**
+ * PresetGrid 卡片网格样式（架构 §5.6.2）。
+ *
+ * 取色一律引用 `--dsw-alias-*` token，不硬编码色值；
+ * 卡片网格自适应列宽（窄屏自然降为单列）。
+ */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 12px;
+}
+
+/* ---- 置顶「跟随系统」项（占满整行） ---- */
+
+.systemCard {
+  grid-column: 1 / -1;
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.systemCard:hover:not(.cardActive) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.systemIcon {
+  flex-shrink: 0;
+  display: block;
+}
+
+/* ---- 预置主题卡片 ---- */
+
+.card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  overflow: hidden;
+
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.card:hover:not(.cardActive) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* 选中态：brand-primary 描边 + 平台模块背景（参照 DSH 选中样式） */
+.cardActive,
+.cardActive:hover {
+  border-color: var(--dsw-alias-brand-primary);
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+/* ---- 壁纸缩略图（内联 --cst-wallpaper-* 变量驱动） ---- */
+
+.thumbnail {
+  position: relative;
+  height: 96px;
+
+  background-color: var(--dsw-alias-bg-layer-2);
+  background-image: var(--cst-wallpaper-image);
+  background-size: cover;
+  background-position: center;
+}
+
+/* 遮罩层：叠加在壁纸之上（绝对定位铺满） */
+.thumbnail::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+
+  background: var(--cst-wallpaper-mask-color);
+  opacity: var(--cst-wallpaper-mask-opacity);
+}
+
+/* ---- 色板预览（light / dark 双行） ---- */
+
+.palette {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 12px 0;
+}
+
+.paletteRow {
+  display: flex;
+  gap: 4px;
+}
+
+.swatch {
+  flex: 1;
+  height: 14px;
+
+  /* 细内描边，保证浅色色块在浅色卡片上依然可见 */
+  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l2);
+}
+
+/* ---- 主题名 ---- */
+
+.cardName {
+  padding: 8px 12px 12px;
+
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
