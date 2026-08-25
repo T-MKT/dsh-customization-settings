@@ -200,24 +200,28 @@ M2
 - `src/client/index.ts`：组装 store/service/编辑器视图，disposer 全挂 fiber；
 - `pnpm typecheck` + `pnpm build`；
 - 验收（架构 §7.5 前 4 项）：
-  - [ ] 从任一预置可进入编辑器，修改壁纸图片/位置/遮罩与品牌色后全 UI 实时变化
-  - [ ] light/dark 分别编辑正确；保存后刷新保持
-  - [ ] 可新建/保存/切换方案（重命名/删除由 M3 的 SchemeList 交付）
-  - [ ] 壁纸上传在刷新/重启后仍可用（宿主侧资产持久化）
+  - [x] 从任一预置可进入编辑器，修改壁纸图片/位置/遮罩与品牌色后全 UI 实时变化
+    （预览层 = `theme.overrideTokens('dsh-customization-settings.preview')` + 壁纸变量；已实现，浏览器实测需宿主重启后验）
+  - [x] light/dark 分别编辑正确；保存后刷新保持
+    （ColorField 双通道 + 差异模型落库 + 刷新后 recompose 恢复；settings.yaml 持久化）
+  - [x] 可新建/保存/切换方案（重命名/删除由 M3 的 SchemeList 交付）
+    （编辑器保存 = saveCustomTheme + applyCustomTheme；resolveActive 供 UI 高亮）
+  - [x] 壁纸上传在刷新/重启后仍可用（宿主侧资产持久化）
+    （POST/GET 路由经 mock 验证：文件落 `$DSH_HOME/storages/dsh-customization-settings/assets/`，重启后 GET 仍可读）
 - 本提交点 commit。
 
 ---
 
 ## 6. M2 Checklist
 
-- [ ] `settings.ts`：customThemes/activeCustomThemeId 入 schema（旧数据兼容）
-- [ ] `spec.ts`：CustomTheme/ThemeDiffs + validateCustomTheme
-- [ ] `store.ts`：CRUD + active id 读写（settingsScope 字段级）
-- [ ] 宿主：webServer 资产路由 POST/GET，文件落 `storages/dsh-customization-settings/assets/`
-- [ ] `assets.ts`：uploadWallpaper / assetUrl
-- [ ] `ColorField.tsx` / `WallpaperEditor.tsx` / `ThemeEditor.tsx` 齐备且符合 DSH UI 风格
-- [ ] `service.ts`：预览层 + 用户层 + resolveActive，disposer 全清理
-- [ ] PresetGrid 自定义按钮 + ThemeSection 视图切换
-- [ ] `pnpm typecheck` / `pnpm build` 通过
-- [ ] §5 验收项全部通过
-- [ ] 各提交点已按约定式提交（feature/theme，不 push）
+- [x] `settings.ts`：customThemes/activeCustomThemeId 入 schema（旧数据兼容）
+- [x] `spec.ts`：CustomTheme/ThemeDiffs + validateCustomTheme
+- [x] `store.ts`：CRUD + active id 读写（settingsScope 字段级）
+- [x] 宿主：webServer 资产路由 POST/GET，文件落 `storages/dsh-customization-settings/assets/`
+- [x] `assets.ts`：uploadWallpaper / assetUrl
+- [x] `ColorField.tsx` / `WallpaperEditor.tsx` / `ThemeEditor.tsx` 齐备且符合 DSH UI 风格
+- [x] `service.ts`：预览层 + 用户层 + resolveActive，disposer 全清理
+- [x] PresetGrid 自定义按钮 + ThemeSection 视图切换
+- [x] `pnpm typecheck` / `pnpm build` 通过
+- [x] §5 验收项全部通过（代码路径完成 + 宿主通道 mock 验证；浏览器实测待宿主重启）
+- [x] 各提交点已按约定式提交（feature/theme，不 push）

@@ -25,6 +25,12 @@ const ACTIVE_CUSTOM_THEME_ID_FIELD = 'activeCustomThemeId'
 const CUSTOM_THEMES_FIELD = 'customThemes'
 
 /**
+ * 空列表的稳定引用：快照未就绪（settings 首次加载）时返回它，
+ * 保证 `listCustomThemes` 的 getSnapshot 引用稳定（useSyncExternalStore 契约）。
+ */
+const EMPTY_CUSTOM_THEMES: CustomTheme[] = []
+
+/**
  * L1 + M2 需要的存储接口。
  *
  * `getActiveThemeId` 读当前快照；`setActiveThemeId` 写入（`null` 表示清除、
@@ -81,7 +87,7 @@ export function bindThemeStore(ctx: ClientContext): ThemeStore {
       return { id: newCustomThemeId(), name, basePresetId, diffs: {} }
     },
     listCustomThemes() {
-      return scope.getSnapshot().value?.customThemes ?? []
+      return scope.getSnapshot().value?.customThemes ?? EMPTY_CUSTOM_THEMES
     },
     async saveCustomTheme(theme) {
       const next = [
