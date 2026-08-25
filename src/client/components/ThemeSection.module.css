@@ -106,6 +106,12 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
+/* 「恢复默认」确认态：错误色文字提示（两步确认的警示视觉） */
+.toolbarButtonDanger {
+  color: var(--dsw-alias-state-error-primary);
+  border-color: var(--dsw-alias-state-error-primary);
+}
+
 /* 隐藏的原生文件选择输入：仅作为「导入」按钮的触发源 */
 .fileInput {
   display: none;

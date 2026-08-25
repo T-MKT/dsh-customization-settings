@@ -1,10 +1,11 @@
-import { useCallback, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { ChangeEvent } from 'react'
 import type { SettingsSectionOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { ThemeService } from '../theme/service.js'
 import type { ThemeStore } from '../theme/store.js'
 import { findPreset } from '../theme/presets.js'
 import type { CustomTheme, Theme, ThemeDiffs } from '../theme/spec.js'
+import type { TOKEN_KEYS } from '../theme/tokens.js'
 import { parseTheme } from '../theme/spec.js'
 import { PresetGrid } from './PresetGrid.js'
 import { SchemeList } from './SchemeList.js'
@@ -51,12 +52,33 @@ export function ThemeSection({ service, store, presets }: ThemeSectionProps): JS
   const [importError, setImportError] = useState<string | null>(null)
   /** 隐藏的 JSON 文件选择输入（「导入」按钮触发）。 */
   const fileInputRef = useRef<HTMLInputElement>(null)
+  /** 「恢复默认」两步确认态：true 时按钮文案变「确认恢复默认？」。 */
+  const [confirmResetAll, setConfirmResetAll] = useState(false)
+
+  /** 确认态 3 秒后自动复位，避免确认态悬挂。 */
+  useEffect(() => {
+    if (!confirmResetAll) return
+    const timer = setTimeout(() => setConfirmResetAll(false), 3000)
+    return () => clearTimeout(timer)
+  }, [confirmResetAll])
 
   // ---- 订阅（getSnapshot 必须返回稳定引用） ----
   const activeId = useSyncExternalStore(service.subscribe, service.getActiveId)
   const mode = useSyncExternalStore(service.subscribe, service.getPreference)
   const active = useSyncExternalStore(service.subscribe, service.resolveActive)
   const customThemes = useSyncExternalStore(store.subscribe, () => store.listCustomThemes())
+
+  // 挂载兜底：settings 快照可能晚于挂载到达（首次加载），此时初始视图可能误落「预置主题」；
+  // 一旦检测到激活自定义方案存在即切到「我的主题」——仅首次生效（autoViewDone），
+  // 之后用户手动切换视图不会被本效果覆盖。
+  const autoViewDone = useRef(false)
+  useEffect(() => {
+    if (autoViewDone.current) return
+    if (active.kind === 'custom') {
+      autoViewDone.current = true
+      setView('schemes')
+    }
+  }, [active])
 
   // 预置卡高亮：自定义方案激活时高亮其基底预置卡（找不到基底则不高亮任何预置）。
   const presetActiveId =
@@ -139,6 +161,18 @@ export function ThemeSection({ service, store, presets }: ThemeSectionProps): JS
     await handleImportFile(file)
   }
 
+  // ---- 恢复处理：编辑器内恢复操作对已保存方案的同步落 store ----
+
+  /** 单维度恢复：对已保存方案同步落 store（themeId 为 null 的新建方案仅编辑器内存处理）。 */
+  function handleResetDimension(themeId: string | null, dimension: 'wallpaper' | TOKEN_KEYS): void {
+    if (themeId) void service.resetDimension(themeId, dimension)
+  }
+
+  /** 整方案重置：对已保存方案同步清空 diffs（themeId 为 null 时仅编辑器内存处理）。 */
+  function handleResetScheme(themeId: string | null): void {
+    if (themeId) void service.resetScheme(themeId)
+  }
+
   // ---- 编辑器：预览 / 保存 / 取消 ----
 
   /** 编辑器内实时预览：差异 → service 预览层；返回结束预览的 disposer。 */
@@ -167,6 +201,8 @@ export function ThemeSection({ service, store, presets }: ThemeSectionProps): JS
           onPreview={handlePreview}
           onSave={handleSave}
           onCancel={handleCancel}
+          onResetDimension={handleResetDimension}
+          onResetScheme={handleResetScheme}
         />
       ) : (
         <>
@@ -222,6 +258,21 @@ export function ThemeSection({ service, store, presets }: ThemeSectionProps): JS
                   onClick={() => fileInputRef.current?.click()}
                 >
                   导入
+                </button>
+                {/* 恢复默认：两步内联确认；一键回 shell 默认：清除预置选择 + 激活自定义方案（无壁纸 + 系统色板） */}
+                <button
+                  type="button"
+                  className={cx(styles.toolbarButton, confirmResetAll && styles.toolbarButtonDanger)}
+                  onClick={() => {
+                    if (confirmResetAll) {
+                      void service.resetAll()
+                      setConfirmResetAll(false)
+                    } else {
+                      setConfirmResetAll(true)
+                    }
+                  }}
+                >
+                  {confirmResetAll ? '确认恢复默认？' : '恢复默认'}
                 </button>
                 {/* 隐藏的原生文件选择输入：仅作为「导入」按钮的触发源 */}
                 <input

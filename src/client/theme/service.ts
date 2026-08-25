@@ -62,6 +62,12 @@ export interface ThemeService {
   activateScheme(id: string | null): Promise<void>
   /** 删除方案；若其为当前激活方案则同时取消激活，回退到预置/默认。 */
   deleteScheme(id: string): Promise<void>
+  /** 单维度恢复：清除已保存方案 diffs 中对应字段（'wallpaper' 或某个 token key）并保存；找不到方案抛错。 */
+  resetDimension(themeId: string, dimension: 'wallpaper' | TOKEN_KEYS): Promise<void>
+  /** 整方案重置：清空已保存方案的全部 diffs（保留名称与基底）并保存；找不到方案抛错。 */
+  resetScheme(themeId: string): Promise<void>
+  /** 一键回 shell 默认：清除预置选择 + 清除激活自定义方案（无壁纸 + 系统色板）；渲染由 store 订阅自动重算。 */
+  resetAll(): Promise<void>
   /** 当前生效方案：custom > preset > system（activeCustomThemeId 存在且能找到对应方案时优先）。 */
   resolveActive(): ActiveResolution
   /** 释放全部资源：注册的 theme、壁纸变量、theme/change 订阅、监听集合。 */
@@ -286,6 +292,34 @@ export function createThemeService(ctx: ClientContext, store: ThemeStore): Theme
       if (store.getActiveCustomThemeId() === id) {
         await store.setActiveCustomThemeId(null)
       }
+    },
+    async resetDimension(themeId, dimension) {
+      const theme = findCustomTheme(themeId)
+      if (!theme) throw new Error('未知的自定义方案: ' + themeId)
+      const diffs: ThemeDiffs = { ...theme.diffs }
+      if (dimension === 'wallpaper') {
+        delete diffs.wallpaper
+      } else {
+        const tokenDiffs = { ...diffs.tokenDiffs }
+        delete tokenDiffs[dimension]
+        if (Object.keys(tokenDiffs).length === 0) {
+          delete diffs.tokenDiffs
+        } else {
+          diffs.tokenDiffs = tokenDiffs
+        }
+      }
+      // 渲染由 store 订阅触发的 recompose 自动重算。
+      await store.saveCustomTheme({ ...theme, diffs })
+    },
+    async resetScheme(themeId) {
+      const theme = findCustomTheme(themeId)
+      if (!theme) throw new Error('未知的自定义方案: ' + themeId)
+      await store.saveCustomTheme({ ...theme, diffs: {} })
+    },
+    async resetAll() {
+      await store.setActiveThemeId(null)
+      await store.setActiveCustomThemeId(null)
+      publish()
     },
     resolveActive() {
       return activeCache
