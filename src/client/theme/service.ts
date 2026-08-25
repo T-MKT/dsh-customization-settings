@@ -258,6 +258,9 @@ export function createThemeService(ctx: ClientContext, store: ThemeStore): Theme
       if (theme !== null) {
         await store.saveCustomTheme(theme)
       }
+      // 保存/取消编辑 = 结束预览会话（预览层与用户层互斥，架构 §7.4）；
+      // 此后渲染以用户层（activeCustomThemeId）为准，由 store 订阅触发 recompose。
+      preview = null
       await store.setActiveCustomThemeId(theme?.id ?? null)
       publish()
     },
