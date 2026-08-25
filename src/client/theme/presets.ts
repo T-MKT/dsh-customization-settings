@@ -1,7 +1,7 @@
 /**
  * 预置主题库（M1 提交点 2 · Agent C）。
  *
- * 6 套手调预置主题：默认 / 暮蓝 / 森林 / 暖橙 / 石墨 / 紫罗兰。
+ * 5 套手调预置主题：暮蓝 / 森林 / 暖橙 / 石墨 / 紫罗兰。
  * - 每套含完整 13 token 的 light/dark 双色板（`colorScheme: 'dual'`）。
  * - 壁纸仅以 `preset:<key>` 字符串键引用（与 wallpaper.ts 的 PRESET_WALLPAPERS
  *   对应），不导入壁纸渲染层。
@@ -140,37 +140,13 @@ function makeTheme(
 }
 
 /**
- * 6 套预置主题。
+ * 5 套预置主题。
  * - 壁纸主题的 `image` 为 `preset:<key>` 字符串键，键与 wallpaper.ts 的
  *   PRESET_WALLPAPERS 一一对应。
  * - 全部为 dual：light / dark 两套独立色板。
  */
 export const PRESETS: Theme[] = [
-  // 1. 默认：中性灰 + 蓝色品牌，无壁纸
-  makeTheme(
-    'preset.default',
-    '默认',
-    NO_WALLPAPER,
-    {
-      brand: '#2563eb',
-      bgBase: '#f7f8fa',
-      bgLayer1: '#ffffff',
-      bgLayer2: '#eef0f3',
-      labelPrimary: '#1b1e24',
-      labelSecondary: '#5a6472',
-      sidebarFill: '#eceef2',
-    },
-    {
-      brand: '#8ab4f8',
-      bgBase: '#16181d',
-      bgLayer1: '#1e2127',
-      bgLayer2: '#262a31',
-      labelPrimary: '#f2f4f8',
-      labelSecondary: '#9aa3af',
-      sidebarFill: '#1a1d23',
-    },
-  ),
-  // 2. 暮蓝：冷蓝、偏暗，壁纸 gradient-dusk
+  // 1. 暮蓝：冷蓝、偏暗，壁纸 gradient-dusk
   makeTheme(
     'preset.dusk',
     '暮蓝',
@@ -194,7 +170,7 @@ export const PRESETS: Theme[] = [
       sidebarFill: '#0e1726',
     },
   ),
-  // 3. 森林：绿色系，壁纸 gradient-aurora
+  // 2. 森林：绿色系，壁纸 gradient-aurora
   makeTheme(
     'preset.forest',
     '森林',
@@ -218,7 +194,7 @@ export const PRESETS: Theme[] = [
       sidebarFill: '#152a11',
     },
   ),
-  // 4. 暖橙：暖橙/棕，无壁纸
+  // 3. 暖橙：暖橙/棕，无壁纸
   makeTheme(
     'preset.warm',
     '暖橙',
@@ -242,7 +218,7 @@ export const PRESETS: Theme[] = [
       sidebarFill: '#251b13',
     },
   ),
-  // 5. 石墨：冷灰近单色，无壁纸
+  // 4. 石墨：冷灰近单色，无壁纸
   makeTheme(
     'preset.graphite',
     '石墨',
@@ -266,7 +242,7 @@ export const PRESETS: Theme[] = [
       sidebarFill: '#181b1f',
     },
   ),
-  // 6. 紫罗兰：紫色系，壁纸 texture-clouds
+  // 5. 紫罗兰：紫色系，壁纸 texture-clouds
   makeTheme(
     'preset.violet',
     '紫罗兰',
@@ -302,6 +278,3 @@ for (const p of PRESETS) {
 export function findPreset(id: string): Theme | undefined {
   return PRESETS.find((p) => p.id === id)
 }
-
-/** 默认预置主题 id（恢复默认 / 初始激活用）。 */
-export const DEFAULT_PRESET_ID: string | null = 'preset.default'
