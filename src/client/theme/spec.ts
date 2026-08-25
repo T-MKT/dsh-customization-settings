@@ -7,6 +7,8 @@
 
 import type { TOKEN_KEYS } from './tokens.js'
 import { THEME_TOKEN_KEYS } from './tokens.js'
+import { findPreset } from './presets.js'
+import { assetUrl } from './assets.js'
 
 export interface Wallpaper {
   /** 'preset:<key>' | URL | null（无壁纸） */
@@ -199,4 +201,178 @@ export function mergeWallpaper(
     maskColor: diff?.maskColor !== undefined ? diff.maskColor : baseWallpaper?.maskColor ?? '#000000',
     maskOpacity: diff?.maskOpacity !== undefined ? diff.maskOpacity : baseWallpaper?.maskOpacity ?? 0,
   }
+}
+
+// ---------------------------------------------------------------------------
+// M3 导入导出（架构 §3.2 Theme 序列化 + §7.4 / plan-m3 §3 提交点 2）
+// ---------------------------------------------------------------------------
+//
+// 导出格式 = 合成后的完整 Theme（基底 + 差异），而非差异本身：
+// `asset:`/`preset:`/URL 引用原样保留相对 id（不内嵌图片数据）；
+// 导入时校验 schemaVersion / 结构 / basePresetId / asset 存在性，
+// 再按「完整值 − 基底值」反推差异（与基底相同的维度不进入 diffs）。
+
+/** 导出/导入的 JSON 形状（§3 序列化格式；wallpaper 为合成后的完整壁纸）。 */
+export interface SerializedTheme {
+  schemaVersion: 1
+  name: string
+  basePresetId: string | null
+  /** 合成后的完整壁纸（基底 + 差异）；null = 无壁纸。 */
+  wallpaper: Wallpaper | null
+  tokenSet: {
+    colorScheme: 'dual'
+    /** 合成后的完整 token 值；基底为 null 时只含差异过的键。 */
+    tokens: Partial<Record<TOKEN_KEYS, { light: string; dark: string }>>
+  }
+}
+
+/**
+ * 序列化自定义方案为可导入的 JSON 字符串（§3 形状）：
+ * - 壁纸：基底壁纸 + 差异合并后的完整 Wallpaper（两者皆空 → null）；
+ * - token：差异值优先，其次基底值；基底为 null 时只导出差异过的键；
+ * - `asset:` / `preset:` / URL 引用原样保留。
+ */
+export function serializeTheme(custom: CustomTheme, base: Theme | null): string {
+  const tokens: SerializedTheme['tokenSet']['tokens'] = {}
+  for (const key of THEME_TOKEN_KEYS) {
+    const pair = custom.diffs.tokenDiffs?.[key] ?? base?.tokenSet.tokens[key]
+    if (pair) tokens[key] = pair
+  }
+  const serialized: SerializedTheme = {
+    schemaVersion: 1,
+    name: custom.name,
+    basePresetId: custom.basePresetId,
+    // 基底缺失时传 undefined（而非 null）：mergeWallpaper 在「基底与差异皆空」时返回 null（无壁纸），
+    // 避免把「无壁纸」导出成一份全默认值的 wallpaper 对象，导致导入时误生成壁纸差异。
+    wallpaper: mergeWallpaper(base?.wallpaper ?? undefined, custom.diffs.wallpaper),
+    tokenSet: { colorScheme: 'dual', tokens },
+  }
+  return JSON.stringify(serialized, null, 2)
+}
+
+/**
+ * 导出文件名建议：`theme-<slug>-<yyyy-mm-dd>.json`（slug 由方案名派生，保留中文）。
+ */
+export function themeExportFilename(name: string): string {
+  const slug =
+    name.trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-').replace(/^-+|-+$/g, '') || 'theme'
+  const date = new Date().toISOString().slice(0, 10)
+  return `theme-${slug}-${date}.json`
+}
+
+/**
+ * 校验 `asset:<id>` 引用在宿主资产通道存在（HEAD 请求，宿主 GET 路由同时支持 HEAD）；
+ * 不存在或请求失败 → 抛可读中文错误（资产无法验证即拒绝，保证不落盘脏引用）。
+ */
+async function assertAssetExists(id: string): Promise<void> {
+  let ok = false
+  try {
+    const res = await fetch(assetUrl(id), { method: 'HEAD' })
+    ok = res.ok
+  } catch {
+    ok = false
+  }
+  if (!ok) throw new Error(`导入失败：壁纸资产不存在（asset:${id}）`)
+}
+
+/**
+ * 解析导入的 JSON 为 CustomTheme（新 id `custom.<uuid>`）：
+ * - JSON 解析失败 / schemaVersion 非 1 / 结构校验失败 → 抛可读中文错误（不部分落盘）；
+ * - `basePresetId` 必须为 `null` 或 `PRESETS` 中存在的预置 id，否则拒绝；
+ * - `asset:` 引用经宿主资产通道校验存在，不存在则拒绝整单；
+ * - 差异由「完整值 − 基底值」反推：与基底相同的维度不进入 diffs。
+ */
+export async function parseTheme(json: string): Promise<CustomTheme> {
+  let raw: unknown
+  try {
+    raw = JSON.parse(json)
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : '解析错误'
+    throw new Error(`导入失败：不是有效的 JSON（${detail}）`)
+  }
+  if (!isRecord(raw)) throw new Error('导入失败：文件内容必须是 JSON 对象')
+  if (raw.schemaVersion !== 1) throw new Error('导入失败：不支持的 schemaVersion（当前仅支持 1）')
+  if (typeof raw.name !== 'string' || raw.name.trim() === '') {
+    throw new Error('导入失败：name 必须是非空字符串')
+  }
+  if (raw.basePresetId !== null && typeof raw.basePresetId !== 'string') {
+    throw new Error('导入失败：basePresetId 必须是字符串或 null')
+  }
+  const basePresetId = raw.basePresetId as string | null
+  if (basePresetId !== null && !findPreset(basePresetId)) {
+    throw new Error(`导入失败：basePresetId 对应的预置主题不存在（${basePresetId}）`)
+  }
+
+  // ---- wallpaper（null 或完整 Wallpaper 形状） ----
+  let wallpaper: Wallpaper | null = null
+  if (raw.wallpaper !== null) {
+    if (!isRecord(raw.wallpaper)) throw new Error('导入失败：wallpaper 必须是对象或 null')
+    const { image, placement, maskColor, maskOpacity } = raw.wallpaper
+    if (image !== null && typeof image !== 'string') {
+      throw new Error('导入失败：wallpaper.image 必须是字符串或 null')
+    }
+    if (placement !== 'fullscreen' && placement !== 'conversation') {
+      throw new Error('导入失败：wallpaper.placement 必须是 "fullscreen" 或 "conversation"')
+    }
+    if (typeof maskColor !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(maskColor)) {
+      throw new Error('导入失败：wallpaper.maskColor 必须是 #rrggbb 十六进制颜色')
+    }
+    if (typeof maskOpacity !== 'number' || Number.isNaN(maskOpacity) || maskOpacity < 0 || maskOpacity > 1) {
+      throw new Error('导入失败：wallpaper.maskOpacity 必须是 0~1 之间的数字')
+    }
+    wallpaper = { image, placement, maskColor, maskOpacity }
+  }
+
+  // ---- tokenSet（仅支持 dual：本插件差异模型为 light/dark 双值） ----
+  if (!isRecord(raw.tokenSet)) throw new Error('导入失败：tokenSet 必须是对象')
+  if (raw.tokenSet.colorScheme !== 'dual') {
+    throw new Error('导入失败：tokenSet.colorScheme 必须是 "dual"（本插件仅支持明暗双值色板）')
+  }
+  if (!isRecord(raw.tokenSet.tokens)) throw new Error('导入失败：tokenSet.tokens 必须是对象')
+  const importedTokens: Partial<Record<TOKEN_KEYS, { light: string; dark: string }>> = {}
+  for (const [key, value] of Object.entries(raw.tokenSet.tokens)) {
+    if (!(THEME_TOKEN_KEYS as readonly string[]).includes(key)) {
+      throw new Error(`导入失败：tokenSet.tokens 包含未知 token: ${key}`)
+    }
+    if (
+      !isRecord(value)
+      || typeof value.light !== 'string'
+      || value.light.length === 0
+      || typeof value.dark !== 'string'
+      || value.dark.length === 0
+    ) {
+      throw new Error(`导入失败：tokenSet.tokens["${key}"] 必须是包含非空 light/dark 字符串的对象`)
+    }
+    importedTokens[key as TOKEN_KEYS] = { light: value.light, dark: value.dark }
+  }
+
+  // ---- asset 引用校验（不存在 → 拒绝整单，不部分落盘） ----
+  const assetId = wallpaper?.image?.startsWith('asset:')
+    ? wallpaper.image.slice('asset:'.length)
+    : null
+  if (assetId) await assertAssetExists(assetId)
+
+  // ---- 差异反推：完整值 − 基底值 ----
+  const base = basePresetId ? findPreset(basePresetId) : undefined
+  const diffs: ThemeDiffs = {}
+  if (wallpaper) {
+    const baseWallpaper = base?.wallpaper
+    const diff: WallpaperDiff = {}
+    if (!baseWallpaper || wallpaper.image !== baseWallpaper.image) diff.image = wallpaper.image
+    if (!baseWallpaper || wallpaper.placement !== baseWallpaper.placement) diff.placement = wallpaper.placement
+    if (!baseWallpaper || wallpaper.maskColor !== baseWallpaper.maskColor) diff.maskColor = wallpaper.maskColor
+    if (!baseWallpaper || wallpaper.maskOpacity !== baseWallpaper.maskOpacity) diff.maskOpacity = wallpaper.maskOpacity
+    if (Object.keys(diff).length > 0) diffs.wallpaper = diff
+  }
+  const tokenDiffs: ThemeDiffs['tokenDiffs'] = {}
+  for (const [key, pair] of Object.entries(importedTokens) as Array<
+    [TOKEN_KEYS, { light: string; dark: string }]
+  >) {
+    const basePair = base?.tokenSet.tokens[key]
+    if (basePair && basePair.light === pair.light && basePair.dark === pair.dark) continue
+    tokenDiffs[key] = pair
+  }
+  if (Object.keys(tokenDiffs).length > 0) diffs.tokenDiffs = tokenDiffs
+
+  return { id: newCustomThemeId(), name: raw.name.trim(), basePresetId, diffs }
 }

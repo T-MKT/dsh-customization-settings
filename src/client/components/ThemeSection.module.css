@@ -39,3 +39,82 @@
   font-size: 14px;
   line-height: 22px;
 }
+
+/* ---- 分段控件：预置主题 | 我的主题（复刻 WallpaperEditor 分段范式） ---- */
+
+.segment {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.segmentButton {
+  box-sizing: border-box;
+  padding: 4px 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+.segmentButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* 选中态：品牌色描边 + 平台模块背景（对齐 PresetGrid 激活卡范式） */
+.segmentActive,
+.segmentActive:hover {
+  border-color: var(--dsw-alias-brand-primary);
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* ---- 我的主题视图：工具条 + 导入 ---- */
+
+/* 工具条（新建方案 / 导入）：flex 行，窄屏换行 */
+.schemeToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 次按钮：边框描边 + 层一背景（范式同 WallpaperEditor 上传按钮） */
+.toolbarButton {
+  box-sizing: border-box;
+  padding: 5px 12px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+.toolbarButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* 隐藏的原生文件选择输入：仅作为「导入」按钮的触发源 */
+.fileInput {
+  display: none;
+}
+
+/* 导入失败提示（工具条下方） */
+.importError {
+  margin: 0;
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 12px;
+  line-height: 16px;
+}

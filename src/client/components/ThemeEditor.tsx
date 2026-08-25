@@ -20,7 +20,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { CustomTheme, Theme, ThemeDiffs, Wallpaper, WallpaperDiff } from '../theme/spec.js'
-import { mergeWallpaper, newCustomThemeId } from '../theme/spec.js'
+import {
+  mergeWallpaper,
+  newCustomThemeId,
+  serializeTheme,
+  themeExportFilename,
+} from '../theme/spec.js'
 import { THEME_TOKENS, TOKEN_GROUPS } from '../theme/tokens.js'
 import type { TOKEN_KEYS } from '../theme/tokens.js'
 import { resolveWallpaperSource } from '../theme/wallpaper.js'
@@ -40,6 +45,17 @@ export interface ThemeEditorProps {
   onSave: (theme: CustomTheme) => void
   /** 取消：丢弃未保存编辑。 */
   onCancel: () => void
+  /**
+   * 单维度恢复（'wallpaper' 或 token key）：themeId 为 null（新建未保存方案）时仅清内存 diffs；
+   * 父组件（ThemeSection）注入后对已保存方案同步落 store；未注入时恢复仅作用于编辑会话
+   * （保存时随会话 diffs 一并落库）。
+   */
+  onResetDimension?: (themeId: string | null, dimension: 'wallpaper' | TOKEN_KEYS) => void
+  /**
+   * 整方案重置（清空全部 diffs，保留名称与基底）：themeId 为 null 时仅清内存 diffs；
+   * 父组件注入后对已保存方案同步落 store；未注入时仅作用于编辑会话。
+   */
+  onResetScheme?: (themeId: string | null) => void
 }
 
 /** 极简类名拼接助手（本仓库无 clsx 依赖）。 */
@@ -74,6 +90,8 @@ export function ThemeEditor({
   onPreview,
   onSave,
   onCancel,
+  onResetDimension,
+  onResetScheme,
 }: ThemeEditorProps): JSX.Element {
   // ---- 编辑会话（内存态）：未保存不写 store ----
   const [name, setName] = useState<string>(
@@ -126,6 +144,37 @@ export function ThemeEditor({
     })
   }
 
+  /** 恢复某 token：移除该 token 差异（tokenDiffs 清空后删除 tokenDiffs 键），随后交由父组件落 store。 */
+  function handleRestoreToken(key: TOKEN_KEYS): void {
+    setDiffs((d) => {
+      const tokenDiffs = { ...d.tokenDiffs }
+      delete tokenDiffs[key]
+      if (Object.keys(tokenDiffs).length === 0) {
+        const rest = { ...d }
+        delete rest.tokenDiffs
+        return rest
+      }
+      return { ...d, tokenDiffs }
+    })
+    onResetDimension?.(initial?.id ?? null, key)
+  }
+
+  /** 恢复壁纸：删除 wallpaper 差异，随后交由父组件落 store。 */
+  function handleRestoreWallpaper(): void {
+    setDiffs((d) => {
+      const rest = { ...d }
+      delete rest.wallpaper
+      return rest
+    })
+    onResetDimension?.(initial?.id ?? null, 'wallpaper')
+  }
+
+  /** 整方案重置：清空全部差异（保留名称与基底），随后交由父组件落 store。 */
+  function handleResetScheme(): void {
+    setDiffs({})
+    onResetScheme?.(initial?.id ?? null)
+  }
+
   /** 保存：合成 CustomTheme（新方案生成 custom.<uuid> id；编辑既有方案沿用其 id）。 */
   function handleSave(): void {
     onSave({
@@ -134,6 +183,29 @@ export function ThemeEditor({
       basePresetId: base?.id ?? null,
       diffs,
     })
+  }
+
+  /**
+   * 导出：把当前编辑会话（含未保存的修改）合成为完整 Theme，序列化为 JSON
+   * 文件并触发浏览器下载。导出不落 store、不改变编辑会话，与「保存」互不影响。
+   */
+  function handleExport(): void {
+    const theme: CustomTheme = {
+      id: initial?.id ?? newCustomThemeId(),
+      name: name.trim() || '未命名主题',
+      basePresetId: base?.id ?? null,
+      diffs,
+    }
+    const json = serializeTheme(theme, base)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = themeExportFilename(theme.name)
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(url)
   }
 
   // 壁纸预览框四变量（无壁纸时 image 显式给 'none'），范式同 PresetGrid/WallpaperEditor 缩略图。
@@ -148,7 +220,7 @@ export function ThemeEditor({
 
   return (
     <div className={styles.root}>
-      {/* 顶栏：取消 / 方案名 / 保存 */}
+      {/* 顶栏：取消 / 方案名 / 整方案重置 / 导出 + 保存 */}
       <header className={styles.topbar}>
         <button type="button" className={styles.cancelButton} onClick={onCancel}>
           取消
@@ -160,6 +232,12 @@ export function ThemeEditor({
           placeholder="方案名"
           aria-label="方案名"
         />
+        <button type="button" className={styles.resetSchemeButton} onClick={handleResetScheme}>
+          整方案重置
+        </button>
+        <button type="button" className={styles.exportButton} onClick={handleExport}>
+          导出
+        </button>
         <button type="button" className={styles.saveButton} onClick={handleSave}>
           保存
         </button>
@@ -202,7 +280,18 @@ export function ThemeEditor({
 
       {/* 编辑区：壁纸段 */}
       <section className={styles.sectionBlock}>
-        <h3 className={styles.sectionTitle}>壁纸</h3>
+        <div className={styles.wallpaperHeader}>
+          <h3 className={styles.sectionTitle}>壁纸</h3>
+          {diffs.wallpaper ? (
+            <button
+              type="button"
+              className={styles.restoreButton}
+              onClick={handleRestoreWallpaper}
+            >
+              恢复壁纸
+            </button>
+          ) : null}
+        </div>
         <WallpaperEditor
           value={effectiveWallpaper}
           onChange={handleWallpaperChange}
@@ -219,13 +308,23 @@ export function ThemeEditor({
             {THEME_TOKENS.filter((token) => token.group === group.id).map((token) => {
               const pair = effectivePair(token.key)
               return (
-                <ColorField
-                  key={token.key}
-                  label={token.label}
-                  light={pair.light}
-                  dark={pair.dark}
-                  onChange={(light, dark) => handleTokenChange(token.key, light, dark)}
-                />
+                <div key={token.key} className={styles.tokenRow}>
+                  <ColorField
+                    label={token.label}
+                    light={pair.light}
+                    dark={pair.dark}
+                    onChange={(light, dark) => handleTokenChange(token.key, light, dark)}
+                  />
+                  {diffs.tokenDiffs?.[token.key] ? (
+                    <button
+                      type="button"
+                      className={styles.restoreButton}
+                      onClick={() => handleRestoreToken(token.key)}
+                    >
+                      恢复该项
+                    </button>
+                  ) : null}
+                </div>
               )
             })}
           </div>

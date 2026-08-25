@@ -107,8 +107,8 @@ async function handleUpload(req: IncomingMessage, res: ServerResponse): Promise<
   sendJson(res, 200, { id })
 }
 
-/** GET：按资产 id 读文件，以嗅探出的图片 Content-Type 返回二进制。 */
-async function handleDownload(pathname: string, res: ServerResponse): Promise<void> {
+/** GET/HEAD：按资产 id 读文件，以嗅探出的图片 Content-Type 返回二进制（HEAD 仅返回头部，供导入校验资产存在性）。 */
+async function handleDownload(pathname: string, res: ServerResponse, headOnly: boolean): Promise<void> {
   const id = decodeURIComponent(pathname.slice(ASSETS_ROUTE.length + 1))
   // 防目录穿越：id 只允许单个文件名形态（URL 解析不归一化 %2F，需显式拒绝）
   if (id === '' || id === '.' || id === '..' || id.includes('/') || id.includes('\\')) {
@@ -119,6 +119,10 @@ async function handleDownload(pathname: string, res: ServerResponse): Promise<vo
     const buffer = await readFile(join(assetsRoot(), id))
     const mime = sniffImageMime(buffer)
     res.writeHead(200, { 'content-type': mime })
+    if (headOnly) {
+      res.end()
+      return
+    }
     res.end(buffer)
   } catch (err) {
     // 文件不存在 → 404；其余错误抛给外层统一 500
@@ -139,9 +143,9 @@ const handler = async (req: IncomingMessage, res: ServerResponse): Promise<void>
       await handleUpload(req, res)
       return
     }
-    // GET /customization/assets/<id>：下载
-    if (req.method === 'GET' && pathname.startsWith(`${ASSETS_ROUTE}/`)) {
-      await handleDownload(pathname, res)
+    // GET / HEAD /customization/assets/<id>：下载（HEAD 仅返回头部，供导入时校验资产存在性）
+    if ((req.method === 'GET' || req.method === 'HEAD') && pathname.startsWith(`${ASSETS_ROUTE}/`)) {
+      await handleDownload(pathname, res, req.method === 'HEAD')
       return
     }
     sendJson(res, 404, { error: '资源不存在' })
