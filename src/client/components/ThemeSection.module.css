@@ -27,3 +27,15 @@
   font-weight: 400;
   line-height: 22px;
 }
+
+/* ---- 自定义方案激活横幅（预置视图 PresetGrid 上方） ---- */
+
+.customBanner {
+  padding: 10px 14px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 22px;
+}

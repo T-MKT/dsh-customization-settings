@@ -45,23 +45,17 @@
   display: block;
 }
 
-/* ---- 预置主题卡片 ---- */
+/* ---- 预置主题卡片（容器：主区按钮 + 右上角「自定义」按钮） ---- */
 
 .card {
+  position: relative;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
 
   border: 1px solid var(--dsw-alias-border-l1);
   border-radius: 12px;
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
   overflow: hidden;
-
-  padding: 0;
-  cursor: pointer;
-  text-align: left;
-  font: inherit;
 }
 
 .card:hover:not(.cardActive) {
@@ -73,6 +67,45 @@
 .cardActive:hover {
   border-color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-bg-module-platform);
+}
+
+/* ---- 卡片主区按钮（缩略图 + 色板 + 名称）：清 button 原生样式 ---- */
+
+.cardMain {
+  display: block;
+  width: 100%;
+
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* ---- 卡片右上角「自定义」按钮（绝对定位浮于缩略图之上） ---- */
+
+.customizeBtn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+
+  padding: 3px 10px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.customizeBtn:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
 }
 
 /* ---- 壁纸缩略图（内联 --cst-wallpaper-* 变量驱动） ---- */

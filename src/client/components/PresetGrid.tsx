@@ -6,6 +6,8 @@
  *   `activeId === null` 时高亮（无描边），点击 → onSelect(null)；
  * - 每套预置一张卡片：壁纸缩略图（`--cst-wallpaper-*` 内联变量，每卡自设）
  *   + light/dark 双行色板预览 + 主题名，点击 → onSelect(theme.id)；
+ * - 卡片右上角「自定义」按钮（与主区为兄弟节点，按钮内不嵌套按钮）：
+ *   点击 → onCustomize(theme)，以该预置为基底进入编辑器；
  * - 激活卡片描边用 `--dsw-alias-label-primary`（见 PresetGrid.module.css）。
  */
 
@@ -22,6 +24,8 @@ export interface PresetGridProps {
   mode: 'light' | 'dark' | 'system'
   /** 点击卡片/跟随系统项时回调；传 null 表示跟随系统。 */
   onSelect: (id: string | null) => void
+  /** 点击卡片「自定义」按钮：以该预置为基底进入编辑器。 */
+  onCustomize: (preset: Theme) => void
 }
 
 /** 极简类名拼接助手（本仓库无 clsx 依赖）。 */
@@ -43,7 +47,13 @@ const SWATCH_TOKEN_KEYS = [
   'dsw-alias-bg-layer-1',
 ] as const
 
-export function PresetGrid({ presets, activeId, mode, onSelect }: PresetGridProps): JSX.Element {
+export function PresetGrid({
+  presets,
+  activeId,
+  mode,
+  onSelect,
+  onCustomize,
+}: PresetGridProps): JSX.Element {
   return (
     <div className={styles.grid}>
       <button
@@ -82,36 +92,47 @@ export function PresetGrid({ presets, activeId, mode, onSelect }: PresetGridProp
         } as CSSProperties
 
         return (
-          <button
+          <div
             key={theme.id}
-            type="button"
             className={cx(styles.card, active && styles.cardActive)}
-            aria-pressed={active}
-            onClick={() => onSelect(theme.id)}
           >
-            <div className={styles.thumbnail} style={thumbVars} />
-            <div className={styles.palette}>
-              <div className={styles.paletteRow}>
-                {SWATCH_TOKEN_KEYS.map((key) => (
-                  <span
-                    key={key}
-                    className={styles.swatch}
-                    style={{ background: theme.tokenSet.tokens[key]?.light }}
-                  />
-                ))}
+            <button
+              type="button"
+              className={styles.cardMain}
+              aria-pressed={active}
+              onClick={() => onSelect(theme.id)}
+            >
+              <div className={styles.thumbnail} style={thumbVars} />
+              <div className={styles.palette}>
+                <div className={styles.paletteRow}>
+                  {SWATCH_TOKEN_KEYS.map((key) => (
+                    <span
+                      key={key}
+                      className={styles.swatch}
+                      style={{ background: theme.tokenSet.tokens[key]?.light }}
+                    />
+                  ))}
+                </div>
+                <div className={styles.paletteRow}>
+                  {SWATCH_TOKEN_KEYS.map((key) => (
+                    <span
+                      key={key}
+                      className={styles.swatch}
+                      style={{ background: theme.tokenSet.tokens[key]?.dark }}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className={styles.paletteRow}>
-                {SWATCH_TOKEN_KEYS.map((key) => (
-                  <span
-                    key={key}
-                    className={styles.swatch}
-                    style={{ background: theme.tokenSet.tokens[key]?.dark }}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className={styles.cardName}>{theme.name}</div>
-          </button>
+              <div className={styles.cardName}>{theme.name}</div>
+            </button>
+            <button
+              type="button"
+              className={styles.customizeBtn}
+              onClick={() => onCustomize(theme)}
+            >
+              自定义
+            </button>
+          </div>
         )
       })}
     </div>
