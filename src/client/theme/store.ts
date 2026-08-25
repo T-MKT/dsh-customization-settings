@@ -55,6 +55,10 @@ export interface ThemeStore {
   getActiveCustomThemeId(): string | null
   /** 持久化激活自定义主题 id；传 `null` 清除该字段（回退 schema 默认）。 */
   setActiveCustomThemeId(id: string | null): Promise<void>
+  /** 复制指定自定义方案：拷贝 diffs + 新 id + 名称追加「副本」；仅返回内存对象，不落盘。 */
+  duplicateCustomTheme(id: string): CustomTheme
+  /** 重命名自定义方案（读-改-写，保持字段级写入与 revision 语义）。 */
+  renameCustomTheme(id: string, name: string): Promise<void>
   /** 订阅快照变化，返回取消订阅的 disposer。 */
   subscribe(listener: () => void): () => void
 }
@@ -109,6 +113,27 @@ export function bindThemeStore(ctx: ClientContext): ThemeStore {
       } else {
         await scope.set(ACTIVE_CUSTOM_THEME_ID_FIELD, id)
       }
+    },
+    duplicateCustomTheme(id) {
+      const source = (scope.getSnapshot().value?.customThemes ?? []).find((item) => item.id === id)
+      if (!source) throw new Error('未知的自定义方案: ' + id)
+      return {
+        id: newCustomThemeId(),
+        name: source.name + '副本',
+        basePresetId: source.basePresetId,
+        diffs: structuredClone(source.diffs),
+      }
+    },
+    async renameCustomTheme(id, name) {
+      const trimmed = name.trim()
+      if (!trimmed) throw new Error('方案名不能为空')
+      const source = (scope.getSnapshot().value?.customThemes ?? []).find((item) => item.id === id)
+      if (!source) throw new Error('未知的自定义方案: ' + id)
+      const next = [
+        ...(scope.getSnapshot().value?.customThemes ?? []).filter((item) => item.id !== id),
+        { ...source, name: trimmed },
+      ]
+      await scope.set(CUSTOM_THEMES_FIELD, next)
     },
     subscribe(listener) {
       return scope.subscribe(listener)

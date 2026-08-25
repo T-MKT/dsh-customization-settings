@@ -1,0 +1,196 @@
+/**
+ * SchemeList 方案列表样式（架构文档 §5.6）。
+ *
+ * 取色一律引用 `--dsw-alias-*` token，不硬编码色值；
+ * 行卡片 12px 圆角 + bg-layer-1 表面 + border-l1 边框 + 14px/22px 文字，
+ * 操作小按钮 pill 样式（对齐 PresetGrid 的 customizeBtn），
+ * 内联重命名输入框对齐 ThemeEditor 的 nameInput。
+ */
+
+/* ---- 列表容器 ---- */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---- 方案行卡片 ---- */
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+
+  padding: 12px 14px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+}
+
+.row:hover:not(.rowActive) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* 激活行：label-primary 描边 + 平台模块背景（对齐 PresetGrid 激活卡） */
+.rowActive,
+.rowActive:hover {
+  border-color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-module-platform);
+}
+
+/* ---- 行首行：名称 + 基底徽标 + 「当前」徽标 ---- */
+
+.rowTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* 名称：省略号截断（flex 子项需 min-width: 0） */
+.rowName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+}
+
+/* 基底徽标：次要文字 pill */
+.baseBadge {
+  flex-shrink: 0;
+  padding: 1px 10px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+/* 「当前」徽标：品牌色填充 pill */
+.activeBadge {
+  flex-shrink: 0;
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: var(--dsw-alias-brand-primary);
+  color: var(--dsw-alias-label-primary-foreground);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+/* ---- 操作行：pill 小按钮（窄屏允许换行） ---- */
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* 普通操作按钮：对齐 PresetGrid 的 customizeBtn（12px/18px、999px、细边框） */
+.actionBtn {
+  box-sizing: border-box;
+  padding: 3px 10px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.actionBtn:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.actionBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* 删除按钮：悬停/确认态用错误色文字 */
+.actionBtnDanger:hover:not(:disabled) {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+/* 删除确认「确认」按钮：错误色文字 + 错误色描边 */
+.confirmDanger {
+  border-color: var(--dsw-alias-state-error-primary);
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.confirmDanger:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-state-error-primary);
+}
+
+/* 「确认删除？」提示文字 */
+.confirmText {
+  align-self: center;
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+/* 重命名「确定」按钮：品牌色主按钮（对齐 ThemeEditor.saveButton 观感） */
+.confirmPrimary {
+  border-color: transparent;
+  background: var(--dsw-alias-brand-primary);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+.confirmPrimary:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-hover);
+  color: var(--dsw-alias-label-primary-foreground);
+}
+
+/* ---- 内联重命名输入框（对齐 ThemeEditor 的 nameInput：8px 圆角、bg-layer-2、focus 品牌描边） ---- */
+
+.renameInput {
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 120px;
+  max-width: 280px;
+  padding: 1px 10px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  outline: none;
+}
+
+.renameInput:focus {
+  border-color: var(--dsw-alias-brand-primary);
+}
+
+/* ---- 空态：虚线边框卡片（与列表同宽） ---- */
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  border: 1px dashed var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 22px;
+  text-align: center;
+}

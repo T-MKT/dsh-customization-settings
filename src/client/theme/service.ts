@@ -58,6 +58,10 @@ export interface ThemeService {
   applyCustomTheme(theme: CustomTheme | null): Promise<void>
   /** 开始/更新实时预览（以 basePresetId 为基底 + diffs 覆盖）；返回「结束预览并恢复用户层」的 disposer；每次调用整体替换旧预览。 */
   beginPreview(basePresetId: string | null, diffs: ThemeDiffs): () => void
+  /** 激活（或取消）已保存的自定义方案：仅切换 activeCustomThemeId（渲染由 store 订阅触发的 recompose 完成），不落库保存。 */
+  activateScheme(id: string | null): Promise<void>
+  /** 删除方案；若其为当前激活方案则同时取消激活，回退到预置/默认。 */
+  deleteScheme(id: string): Promise<void>
   /** 当前生效方案：custom > preset > system（activeCustomThemeId 存在且能找到对应方案时优先）。 */
   resolveActive(): ActiveResolution
   /** 释放全部资源：注册的 theme、壁纸变量、theme/change 订阅、监听集合。 */
@@ -270,6 +274,17 @@ export function createThemeService(ctx: ClientContext, store: ThemeStore): Theme
       return () => {
         preview = null
         recompose()
+      }
+    },
+    async activateScheme(id: string | null) {
+      if (id !== null && !findCustomTheme(id)) throw new Error('未知的自定义方案: ' + id)
+      await store.setActiveCustomThemeId(id)
+      publish()
+    },
+    async deleteScheme(id) {
+      await store.removeCustomTheme(id)
+      if (store.getActiveCustomThemeId() === id) {
+        await store.setActiveCustomThemeId(null)
       }
     },
     resolveActive() {
