@@ -1,6 +1,10 @@
 # 依赖与构建产物
 node_modules/
 
+# 沙箱会话的局部 pnpm 配置与工作区 store（不入库）
+.npmrc
+.pnpm-store/
+
 # 使用 pnpm（生态约定），忽略 npm 生成的锁文件
 package-lock.json
 

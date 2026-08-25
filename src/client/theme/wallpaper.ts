@@ -4,10 +4,13 @@
  * 纯逻辑 + DOM CSS 变量写入，不依赖 React：
  * - 把当前生效壁纸写入根元素 4 个 `--cst-wallpaper-*` CSS 变量；
  * - 返回 disposer，调用后变量全部复原为基础默认值。
- * - M1 无独立资源管线，内置壁纸以自包含的 SVG data URI 形式提供。
+ * - 图片来源三通道：内置预置（`preset:<key>` → data URI）、宿主上传资产
+ *   （`asset:<id>` → 相对 URL，见 assets.ts；settings 只存引用）、任意 URL；
+ *   `resolveWallpaperSource` 统一返回 `url("...")` 包裹的 background-image 值。
  */
 
 import type { Wallpaper } from './spec.js'
+import { assetUrl } from './assets.js'
 
 /** M1 内置壁纸资源表（键 → data URI / label）。 */
 export interface PresetWallpaper {
@@ -65,16 +68,25 @@ const WALLPAPER_DEFAULTS = {
 } as const
 
 /**
- * 解析壁纸图片源：`preset:<key>` → 内置 data URI；未知键 → `null`；
- * 普通 URL 原样返回；非字符串 → `null`。
+ * 解析壁纸图片源为可直接作为 `background-image` 值的字符串（一律 `url("...")` 包裹）：
+ * - `preset:<key>` → `url("<内置 data URI>")`；未知键 → `null`；
+ * - `asset:<id>` → `url("<宿主资产相对 URL>")`；id 为空 → `null`；
+ * - 其他非空字符串（http URL 等）→ `url("<原值>")`；
+ * - 空字符串 / 非字符串 → `null`。
  */
 export function resolveWallpaperSource(image: string): string | null {
-  if (typeof image !== 'string') return null
+  if (typeof image !== 'string' || image === '') return null
   if (image.startsWith('preset:')) {
     const key = image.slice('preset:'.length) as PresetWallpaperKey
-    return PRESET_WALLPAPERS[key]?.image ?? null
+    const uri = PRESET_WALLPAPERS[key]?.image
+    return uri ? `url("${uri}")` : null
   }
-  return image
+  if (image.startsWith('asset:')) {
+    const id = image.slice('asset:'.length)
+    if (id === '') return null
+    return `url("${assetUrl(id)}")`
+  }
+  return `url("${image}")`
 }
 
 /**
