@@ -13,7 +13,7 @@
  */
 
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import type { ThemeSnapshot, ThemeTokens } from '@deepseek-ai/dsh-client-ui-theme/client'
+import type { ThemePreference, ThemeSnapshot, ThemeTokens } from '@deepseek-ai/dsh-client-ui-theme/client'
 import { findPreset, PRESETS } from './presets.js'
 import { applyWallpaper } from './wallpaper.js'
 import { getToken } from './tokens.js'
@@ -30,6 +30,8 @@ export interface ThemeService {
   applyTheme(id: string | null): Promise<void>
   /** 当前激活的预置主题 id（来自 store 的持久化值）；`null` = 跟随系统/默认。 */
   getActiveId(): string | null
+  /** 当前深浅色偏好（与「通用设置」Appearance 行一致）：`light`/`dark`/`system`。 */
+  getPreference(): ThemePreference
   /** 订阅激活主题或明暗态变化，返回取消订阅的 disposer。 */
   subscribe(listener: () => void): () => void
   /** 释放全部资源：注册的 theme、壁纸变量、theme/change 订阅、监听集合。 */
@@ -149,6 +151,9 @@ export function createThemeService(ctx: ClientContext, store: ThemeStore): Theme
     },
     getActiveId() {
       return store.getActiveThemeId()
+    },
+    getPreference() {
+      return ctx.theme.getTheme().preference
     },
     subscribe(listener) {
       listeners.add(listener)

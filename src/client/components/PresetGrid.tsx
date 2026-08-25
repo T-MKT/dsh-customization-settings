@@ -2,9 +2,11 @@
  * 预置主题卡片网格（架构文档 §5.6）。
  *
  * 纯展示 + 回调组件：只接收 props，不接触任何 store / ctx / 主题服务。
- * - 置顶「跟随系统」项：activeId === null 时高亮，点击 → onSelect(null)；
+ * - 置顶「内置主题」项：文案随深浅色偏好（浅色/深色/跟随系统），
+ *   `activeId === null` 时高亮（无描边），点击 → onSelect(null)；
  * - 每套预置一张卡片：壁纸缩略图（`--cst-wallpaper-*` 内联变量，每卡自设）
- *   + light/dark 双行色板预览 + 主题名，点击 → onSelect(theme.id)。
+ *   + light/dark 双行色板预览 + 主题名，点击 → onSelect(theme.id)；
+ * - 激活卡片描边用 `--dsw-alias-label-primary`（见 PresetGrid.module.css）。
  */
 
 import type { CSSProperties } from 'react'
@@ -16,6 +18,8 @@ export interface PresetGridProps {
   presets: readonly Theme[]
   /** 当前激活的预置主题 id；null = 跟随系统。 */
   activeId: string | null
+  /** 当前深浅色偏好（light/dark/system），用于「内置主题」按钮文案。 */
+  mode: 'light' | 'dark' | 'system'
   /** 点击卡片/跟随系统项时回调；传 null 表示跟随系统。 */
   onSelect: (id: string | null) => void
 }
@@ -25,6 +29,13 @@ function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(' ')
 }
 
+/** 深浅色偏好 → 「内置主题」按钮文案（与「通用设置」Appearance 行一致）。 */
+const MODE_LABELS = {
+  light: '浅色',
+  dark: '深色',
+  system: '跟随系统',
+} as const
+
 /** 色板预览展示的三个 token key（取自主题数据，非硬编码色值）。 */
 const SWATCH_TOKEN_KEYS = [
   'dsw-alias-brand-primary',
@@ -32,7 +43,7 @@ const SWATCH_TOKEN_KEYS = [
   'dsw-alias-bg-layer-1',
 ] as const
 
-export function PresetGrid({ presets, activeId, onSelect }: PresetGridProps): JSX.Element {
+export function PresetGrid({ presets, activeId, mode, onSelect }: PresetGridProps): JSX.Element {
   return (
     <div className={styles.grid}>
       <button
@@ -53,10 +64,11 @@ export function PresetGrid({ presets, activeId, onSelect }: PresetGridProps): JS
           <path d="M8 1a7 7 0 1 0 0 14z" fillOpacity="0.35" />
           <path d="M8 1a7 7 0 0 1 0 14z" />
         </svg>
-        <span>跟随系统</span>
+        <span>内置主题 - {MODE_LABELS[mode]}</span>
       </button>
 
       {presets.map((theme) => {
+        const active = theme.id === activeId
         const wallpaper = theme.wallpaper
         // 每张卡片始终自设 4 个壁纸变量（无壁纸时 image 显式给 'none'），
         // 不依赖全局变量，避免卡片之间相互串色。
@@ -73,8 +85,8 @@ export function PresetGrid({ presets, activeId, onSelect }: PresetGridProps): JS
           <button
             key={theme.id}
             type="button"
-            className={cx(styles.card, theme.id === activeId && styles.cardActive)}
-            aria-pressed={theme.id === activeId}
+            className={cx(styles.card, active && styles.cardActive)}
+            aria-pressed={active}
             onClick={() => onSelect(theme.id)}
           >
             <div className={styles.thumbnail} style={thumbVars} />

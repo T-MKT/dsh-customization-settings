@@ -22,6 +22,7 @@ export interface ThemeSectionProps extends SettingsSectionOwnerProps {
  */
 export function ThemeSection({ service, presets }: ThemeSectionProps): JSX.Element {
   const activeId = useSyncExternalStore(service.subscribe, service.getActiveId)
+  const mode = useSyncExternalStore(service.subscribe, service.getPreference)
   return (
     <div className={styles.section}>
       <header className={styles.header}>
@@ -33,6 +34,7 @@ export function ThemeSection({ service, presets }: ThemeSectionProps): JSX.Eleme
       <PresetGrid
         presets={presets}
         activeId={activeId}
+        mode={mode}
         onSelect={(id: string | null) => void service.applyTheme(id)}
       />
     </div>

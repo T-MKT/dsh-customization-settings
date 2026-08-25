@@ -11,7 +11,9 @@
   gap: 12px;
 }
 
-/* ---- 置顶「跟随系统」项（占满整行） ---- */
+/* ---- 置顶「内置主题」项（占满整行） ----
+   默认透明描边（视觉上无描边），border-style 保持 solid，
+   激活时 .cardActive 的 border-color 才能生效。 */
 
 .systemCard {
   grid-column: 1 / -1;
@@ -23,7 +25,7 @@
   box-sizing: border-box;
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid var(--dsw-alias-border-l1);
+  border: 1px solid transparent;
   border-radius: 12px;
   background: var(--dsw-alias-bg-layer-1);
   color: var(--dsw-alias-label-primary);
@@ -66,10 +68,10 @@
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-/* 选中态：brand-primary 描边 + 平台模块背景（参照 DSH 选中样式） */
+/* 激活态：label-primary 描边 + 平台模块背景（明暗两套自动适配） */
 .cardActive,
 .cardActive:hover {
-  border-color: var(--dsw-alias-brand-primary);
+  border-color: var(--dsw-alias-label-primary);
   background: var(--dsw-alias-bg-module-platform);
 }
 
