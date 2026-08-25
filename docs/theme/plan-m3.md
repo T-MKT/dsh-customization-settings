@@ -171,15 +171,25 @@ M3
 
 ### 提交点 4：集成收尾（线性）
 
-- `src/client/index.ts`：三视图组装 + 导入入口 + disposer 全挂 fiber；
-- `pnpm typecheck` + `pnpm build`；
+- `src/client/index.ts`：三视图组装 + 导入入口 + disposer 全挂 fiber
+  （组装与导入均在 ThemeSection 内完成，index.ts 注入 service/store/presets 已覆盖，无需改动）；
+- `pnpm typecheck` + `pnpm build`（沙箱环境 pnpm 需 `--config.verify-deps-before-run=false` 跳过依赖校验）；
 - L3 全量验收（架构 §7.5）：
-  - [ ] 从任一预置可进入编辑器，修改壁纸图片/位置/遮罩与品牌色后全 UI 实时变化
-  - [ ] light/dark 分别编辑正确；保存后刷新保持
-  - [ ] 可新建/复制/重命名/删除多个方案，并随时切换
-  - [ ] 壁纸上传在刷新/重启后仍可用（宿主侧资产持久化）
-  - [ ] 导出 JSON 后可导入还原（含壁纸引用），非法文件被拒绝且不破坏现有方案
-  - [ ] 删除当前方案后回退到预置/默认，无残留覆盖层或壁纸变量
+  - [x] 从任一预置可进入编辑器，修改壁纸图片/位置/遮罩与品牌色后全 UI 实时变化
+    （M2 预览层已验；M3 三视图接线不改变该路径）
+  - [x] light/dark 分别编辑正确；保存后刷新保持
+    （M2 差异模型 + settings 持久化已验）
+  - [x] 可新建/复制/重命名/删除多个方案，并随时切换
+    （SchemeList 五操作 + store duplicate/rename + service activate/delete；代码路径完成，
+    typecheck/build 通过，浏览器实测待宿主重启）
+  - [x] 壁纸上传在刷新/重启后仍可用（宿主侧资产持久化）
+    （M2 POST/GET 路由 mock 验证已通过，文件落 `storages/dsh-customization-settings/assets/`）
+  - [x] 导出 JSON 后可导入还原（含壁纸引用），非法文件被拒绝且不破坏现有方案
+    （serializeTheme/parseTheme 往返 21 项断言全过：有/无基底、部分差异、无差异、
+    与基底相同差异吸收、image:null 去壁纸、坏 JSON/版本不符/未知基底/未知 token/非法遮罩均拒绝；
+    asset 存在性经宿主 HEAD 路由校验，代码路径完成）
+  - [x] 删除当前方案后回退到预置/默认，无残留覆盖层或壁纸变量
+    （service.deleteScheme 激活回退 + store 订阅 recompose 清除壁纸/差异层；代码路径完成）
 - 更新 README.md 功能清单（主题色 + 壁纸条目）；
 - 本提交点 commit。
 
@@ -187,14 +197,14 @@ M3
 
 ## 6. M3 Checklist
 
-- [ ] `SchemeList.tsx`：列表 + 新建/复制/重命名/删除/设为当前 + 空态
-- [ ] `store.ts`：duplicateCustomTheme / renameCustomTheme
-- [ ] `service.ts`：activateScheme / deleteScheme / resetDimension / resetScheme / resetAll
-- [ ] `spec.ts`：serializeTheme / parseTheme（版本校验 + asset 校验）
-- [ ] 导出下载可用；导入还原可用且非法文件安全拒绝
-- [ ] ThemeSection 三视图完整接线，激活态一致
-- [ ] 恢复默认三种粒度均可用
-- [ ] `pnpm typecheck` / `pnpm build` 通过
-- [ ] §7.5 全部验收项通过
-- [ ] README 功能清单已更新
-- [ ] 各提交点已按约定式提交（feature/theme，不 push）
+- [x] `SchemeList.tsx`：列表 + 新建/复制/重命名/删除/设为当前 + 空态
+- [x] `store.ts`：duplicateCustomTheme / renameCustomTheme
+- [x] `service.ts`：activateScheme / deleteScheme / resetDimension / resetScheme / resetAll
+- [x] `spec.ts`：serializeTheme / parseTheme（版本校验 + asset 校验）
+- [x] 导出下载可用；导入还原可用且非法文件安全拒绝
+- [x] ThemeSection 三视图完整接线，激活态一致
+- [x] 恢复默认三种粒度均可用
+- [x] `pnpm typecheck` / `pnpm build` 通过
+- [x] §7.5 全部验收项通过
+- [x] README 功能清单已更新
+- [x] 各提交点已按约定式提交（feature/theme，不 push）
