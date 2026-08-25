@@ -1,0 +1,217 @@
+/**
+ * ThemeEditor 主题编辑器样式（架构 §7.3/§7.4 + §5.6.2：CSS Modules + --dsw-alias-* token）。
+ *
+ * 取色一律引用 `--dsw-alias-*` token，不硬编码色值；
+ * 顶栏/预览卡片/分段控件对齐 DSH 设置页观感（12px 圆角、14px/22px 字号行高）。
+ */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ---- 顶栏：取消 / 方案名 / 保存（flex space-between） ---- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* 方案名输入：宽度适中、层级 2 表面 + 细边框，focus 品牌色描边 */
+.nameInput {
+  box-sizing: border-box;
+  flex: 1;
+  max-width: 320px;
+  min-width: 160px;
+  padding: 5px 12px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  outline: none;
+}
+
+.nameInput::placeholder {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.nameInput:focus {
+  border-color: var(--dsw-alias-brand-primary);
+}
+
+/* 保存：品牌色主按钮（品牌填充 + 品牌上前景文字；悬停用主按钮 hover 态） */
+.saveButton {
+  box-sizing: border-box;
+  padding: 5px 16px;
+  border: none;
+  border-radius: 12px;
+  background: var(--dsw-alias-brand-primary);
+  color: var(--dsw-alias-label-primary-foreground);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+.saveButton:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-hover);
+}
+
+.saveButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* 取消：次按钮（透明背景 + 细边框 + 次要文字） */
+.cancelButton {
+  box-sizing: border-box;
+  padding: 5px 12px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+.cancelButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* ---- 预览区：卡片式（bg-layer-1 + border-l1 + 12px 圆角 + 内边距） ---- */
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+/* 壁纸预览框：内联 --cst-wallpaper-* 变量驱动（范式同 PresetGrid/WallpaperEditor 缩略图） */
+.previewThumb {
+  position: relative;
+  height: 160px;
+
+  background-color: var(--dsw-alias-bg-layer-2);
+  background-image: var(--cst-wallpaper-image);
+  background-size: cover;
+  background-position: center;
+
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* 遮罩层：叠加在壁纸之上（绝对定位铺满），与渲染层同语义 */
+.previewThumb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+
+  background: var(--cst-wallpaper-mask-color);
+  opacity: var(--cst-wallpaper-mask-opacity);
+}
+
+/* 预览底部行：色板条左、明暗分段右 */
+.previewFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* 色板条：品牌/基础背景/主要文字三个色块 */
+.swatchBar {
+  display: flex;
+  gap: 6px;
+}
+
+.swatch {
+  box-sizing: border-box;
+  width: 28px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-2);
+
+  /* 细内描边，保证浅色色块在浅色卡片上依然可见 */
+  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l2);
+}
+
+/* 明暗分段控件：选中态品牌色（对齐 WallpaperEditor 位置分段范式） */
+.segment {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.segmentButton {
+  box-sizing: border-box;
+  padding: 4px 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+.segmentButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* 选中态：品牌色描边 + 平台模块背景（对齐 WallpaperEditor 分段控件） */
+.segmentActive,
+.segmentActive:hover {
+  border-color: var(--dsw-alias-brand-primary);
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* ---- 编辑区分区 ---- */
+
+.sectionBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 分区标题：12px 次要文字 */
+.sectionTitle {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+/* 主题色分组：分组标题 + 组内 ColorField 行 */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.groupTitle {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}

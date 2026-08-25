@@ -1,0 +1,249 @@
+/**
+ * WallpaperEditor 壁纸编辑区样式（架构 §5.6.2：CSS Modules + --dsw-alias-* token）。
+ *
+ * 取色一律引用 `--dsw-alias-*` token，不硬编码色值；
+ * 分区标题 12px 次要文字、卡片 12px 圆角、字号 14px/行高 22px，对齐 DSH 设置页观感；
+ * 分段控件选中态用 --dsw-alias-brand-primary 描边（对齐 PresetGrid 激活卡范式）。
+ */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ---- 壁纸预览（内联 --cst-wallpaper-* 变量驱动，范式同 PresetGrid） ---- */
+
+.thumbnail {
+  position: relative;
+  height: 128px;
+
+  background-color: var(--dsw-alias-bg-layer-2);
+  background-image: var(--cst-wallpaper-image);
+  background-size: cover;
+  background-position: center;
+
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* 遮罩层：叠加在壁纸之上（绝对定位铺满），与渲染层同语义 */
+.thumbnail::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+
+  background: var(--cst-wallpaper-mask-color);
+  opacity: var(--cst-wallpaper-mask-opacity);
+}
+
+/* 无壁纸占位提示：置于遮罩层之上，保证文字可见 */
+.thumbnailHint {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 16px;
+  pointer-events: none;
+}
+
+/* ---- 分区：标题 + 内容 ---- */
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.blockTitle {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+/* ---- 图片来源三通道（并列展示，窄屏换行） ---- */
+
+.sourceRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 隐藏的原生文件选择输入：仅作为上传按钮的触发源 */
+.fileInput {
+  display: none;
+}
+
+.uploadButton {
+  box-sizing: border-box;
+  padding: 5px 12px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+.uploadButton:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.uploadButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.urlInput {
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 160px;
+  padding: 5px 10px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  outline: none;
+}
+
+.urlInput::placeholder {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.urlInput:focus {
+  border-color: var(--dsw-alias-brand-primary);
+}
+
+.presetSelect {
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+.presetSelect:focus {
+  outline: none;
+  border-color: var(--dsw-alias-brand-primary);
+}
+
+.errorText {
+  margin: 0;
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* ---- 位置分段控件 ---- */
+
+.segment {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.segmentButton {
+  box-sizing: border-box;
+  padding: 4px 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+.segmentButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* 选中态：品牌色描边 + 平台模块背景（对齐 PresetGrid 激活卡范式） */
+.segmentActive,
+.segmentActive:hover {
+  border-color: var(--dsw-alias-brand-primary);
+  background: var(--dsw-alias-bg-module-platform);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* ---- 遮罩：颜色 / 透明度 ---- */
+
+.maskRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.maskField {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.maskLabel {
+  flex-shrink: 0;
+  width: 48px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* 原生 color 输入收敛：固定 28×28、细边框、圆角（范式同 ColorField） */
+.colorInput {
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.colorInput::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.colorInput::-webkit-color-swatch {
+  border: none;
+  border-radius: 4px;
+}
+
+/* 透明度滑块：品牌色点缀（accent-color），宽度自定 */
+.opacityInput {
+  width: 160px;
+  accent-color: var(--dsw-alias-brand-primary);
+  cursor: pointer;
+}
+
+.opacityValue {
+  min-width: 40px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 22px;
+}

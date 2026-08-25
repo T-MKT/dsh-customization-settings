@@ -1,0 +1,82 @@
+/**
+ * ColorField 单颜色项样式（架构 §5.6.2：CSS Modules + --dsw-alias-* token）。
+ *
+ * 取色一律引用 `--dsw-alias-*` token，不硬编码色值；
+ * monospace 字体家族为十六进制文本排版需要，除外。
+ */
+
+/* 行容器：label 左、双通道右（对齐 shell 设置页行式布局） */
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.label {
+  flex-shrink: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+/* 浅色 / 深色两通道并排 */
+.channels {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 单通道：小标签 + 色块输入 + 文本输入并排 */
+.channel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.channelLabel {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* 原生 color 输入收敛：固定 28×28、细边框、圆角，去掉默认内边距 */
+.colorInput {
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* WebKit 取色器内嵌 swatch 收敛：紧贴输入框内边、圆角跟随 */
+.colorInput::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.colorInput::-webkit-color-swatch {
+  border: none;
+  border-radius: 4px;
+}
+
+/* 十六进制文本输入：层级 2 表面 + 细边框，focus 以品牌色描边 */
+.textInput {
+  box-sizing: border-box;
+  width: 80px;
+  padding: 6px 8px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 16px;
+  outline: none;
+}
+
+.textInput:focus {
+  border-color: var(--dsw-alias-brand-primary);
+}
