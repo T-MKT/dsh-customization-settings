@@ -1,9 +1,10 @@
 /**
  * 壁纸渲染层（架构文档 §5.2 / §5.3）。
  *
- * 纯逻辑 + DOM CSS 变量写入，不依赖 React：
- * - 把当前生效壁纸写入根元素 4 个 `--cst-wallpaper-*` CSS 变量；
- * - 返回 disposer，调用后变量全部复原为基础默认值。
+ * 纯逻辑 + DOM 写入，不依赖 React：
+ * - 把当前生效壁纸写入根元素 4 个 `--cst-wallpaper-*` CSS 变量（供预览缩略图等消费）；
+ * - 挂载真正的壁纸层到应用框架/对话区列（见 applyWallpaper，修复「壁纸不显示」）；
+ * - 返回 disposer，调用后变量复原、壁纸层移除、容器内联样式复原。
  * - 图片来源三通道：内置预置（`preset:<key>` → data URI）、宿主上传资产
  *   （`asset:<id>` → 相对 URL，见 assets.ts；settings 只存引用）、任意 URL；
  *   `resolveWallpaperSource` 统一返回 `url("...")` 包裹的 background-image 值。
@@ -90,11 +91,90 @@ export function resolveWallpaperSource(image: string): string | null {
 }
 
 /**
- * 把壁纸写入根元素 CSS 变量并返回 disposer。
+ * 壁纸渲染层（架构 §5.3「背景容器样式」）——修复「壁纸不显示」：
  *
- * - `wallpaper` 为 `null` 或其 `image` 为 `null`：视为「无壁纸」，写入全部默认值；
- * - `document` 不可用（如 SSR）时安全跳过写入，仍返回可安全调用的 disposer；
- * - disposer 将 4 个变量全部复原为基础默认值。
+ * 仅把 `--cst-wallpaper-*` 变量写到根元素不会被任何元素消费，壁纸实际不可见。
+ * 本层把生效壁纸真正挂到应用容器上：
+ * - `fullscreen` → 挂到应用框架（AppFrame 的 frame 网格容器），垫在列内容之下；
+ * - `conversation` → 挂到对话区列（AppFrame 的 centerCol），仅对话区可见；
+ * - 目标容器先 `isolation: isolate` 成为叠加上下文，壁纸层以 `z-index: -1`
+ *   垫在容器背景之上、内容之下；遮罩以子层（maskColor + maskOpacity）叠加；
+ * - 框架渲染晚于插件 apply 时，用 MutationObserver 监听 `#root` 待框架出现后补挂。
+ */
+
+/** 壁纸层元素标记（幂等去重：挂载前先清理同页残留旧层）。 */
+const LAYER_ATTR = 'data-cst-wallpaper-layer'
+/** 遮罩子层标记。 */
+const MASK_ATTR = 'data-cst-wallpaper-mask'
+
+/** 应用框架容器（AppFrame 的 frame div）：`#root` 下带内联 grid-template-columns 的网格容器。 */
+function findFrame(): HTMLElement | null {
+  const root = document.getElementById('root')
+  if (!root) return null
+  for (const el of Array.from(root.querySelectorAll<HTMLElement>('div'))) {
+    const inline = el.style.gridTemplateColumns
+    if (inline && inline.includes('minmax(0, 1fr)') && getComputedStyle(el).display === 'grid') {
+      return el
+    }
+  }
+  return null
+}
+
+/** 对话区列（AppFrame 的 centerCol）：frame 直接子元素中 computed 为 flex 纵向布局者。 */
+function findCenterColumn(frame: HTMLElement): HTMLElement | null {
+  for (const el of Array.from(frame.children)) {
+    const cs = getComputedStyle(el)
+    if (cs.display === 'flex' && cs.flexDirection === 'column') return el as HTMLElement
+  }
+  return null
+}
+
+/**
+ * 让目标容器成为叠加上下文并可作为绝对定位参考（isolation: isolate + position: relative），
+ * 使壁纸层能以 `z-index: -1` 垫在容器背景之上、内容之下；返回复原函数（disposer 恢复内联样式）。
+ */
+function prepareTarget(target: HTMLElement): () => void {
+  const prevIsolation = target.style.isolation
+  const prevPosition = target.style.position
+  target.style.isolation = 'isolate'
+  target.style.position = 'relative'
+  return () => {
+    target.style.isolation = prevIsolation
+    target.style.position = prevPosition
+  }
+}
+
+/** 构建壁纸层（图片背景 + 遮罩子层）并挂到目标容器最底层。 */
+function buildLayer(wallpaper: Wallpaper, source: string, target: HTMLElement): HTMLDivElement {
+  const layer = document.createElement('div')
+  layer.setAttribute(LAYER_ATTR, '')
+  layer.style.position = 'absolute'
+  layer.style.inset = '0'
+  layer.style.zIndex = '-1'
+  layer.style.pointerEvents = 'none'
+  layer.style.backgroundImage = source
+  layer.style.backgroundSize = 'cover'
+  layer.style.backgroundPosition = 'center'
+
+  const mask = document.createElement('div')
+  mask.setAttribute(MASK_ATTR, '')
+  mask.style.position = 'absolute'
+  mask.style.inset = '0'
+  mask.style.background = wallpaper.maskColor
+  mask.style.opacity = String(wallpaper.maskOpacity)
+
+  layer.appendChild(mask)
+  target.insertBefore(layer, target.firstChild)
+  return layer
+}
+
+/**
+ * 把壁纸写入根元素 CSS 变量并挂载真正的壁纸层，返回 disposer。
+ *
+ * - `wallpaper` 为 `null` 或其 `image` 为 `null`：视为「无壁纸」，写入全部默认值、不挂层；
+ * - 图片源解析失败（未知 `preset:` 键等）时不挂层（避免出现无图遮罩）；
+ * - `document` 不可用（如 SSR）时安全跳过，仍返回可安全调用的 disposer；
+ * - disposer 复原 4 个变量、移除壁纸层、断开补挂监听并复原目标容器内联样式。
  */
 export function applyWallpaper(wallpaper: Wallpaper | null): () => void {
   const root = typeof document !== 'undefined' ? document.documentElement : null
@@ -115,11 +195,47 @@ export function applyWallpaper(wallpaper: Wallpaper | null): () => void {
     }
   }
 
+  // ---- 壁纸层：仅当有可用图片源时挂载 ----
+  let layer: HTMLDivElement | null = null
+  let observer: MutationObserver | null = null
+  let restoreTarget: (() => void) | null = null
+  if (typeof document !== 'undefined' && wallpaper && wallpaper.image !== null) {
+    const source = resolveWallpaperSource(wallpaper.image)
+    if (source) {
+      const mount = (): void => {
+        if (layer) return
+        // 幂等清理：同页可能存在上一次未 dispose 的旧层（防御性）
+        for (const old of Array.from(document.querySelectorAll(`[${LAYER_ATTR}]`))) old.remove()
+        const frame = findFrame()
+        if (!frame) return
+        const target = wallpaper.placement === 'conversation' ? findCenterColumn(frame) : frame
+        if (!target) return
+        restoreTarget = prepareTarget(target)
+        layer = buildLayer(wallpaper, source, target)
+        observer?.disconnect()
+        observer = null
+      }
+      mount()
+      if (!layer) {
+        // 应用框架尚未渲染（插件 apply 早于 React 挂载）：监听 #root，框架出现后补挂
+        observer = new MutationObserver(mount)
+        const appRoot = document.getElementById('root')
+        if (appRoot) observer.observe(appRoot, { childList: true, subtree: true })
+      }
+    }
+  }
+
   return () => {
     if (root) {
       for (const [name, value] of Object.entries(WALLPAPER_DEFAULTS)) {
         root.style.setProperty(name, value)
       }
     }
+    layer?.remove()
+    layer = null
+    observer?.disconnect()
+    observer = null
+    restoreTarget?.()
+    restoreTarget = null
   }
 }
