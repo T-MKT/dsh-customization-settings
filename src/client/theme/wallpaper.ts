@@ -114,20 +114,34 @@ const ACTIVE_ATTR = 'data-cst-wallpaper'
 const STYLE_ATTR = 'data-cst-wallpaper-rules'
 
 /**
- * 壁纸激活时的全局样式：仅把三个「全区域不透明表面」透明化，壁纸才能透出——
- * - 对话区根容器（`.wSkVaW_root`，`background: var(--dsw-alias-bg-base)`，铺满对话区列）；
- * - 详情区根容器（`ydkMvW_root`，同样 bg-base）；
- * - 侧边栏列（`.pI_x6G_sidebarCol`，`background: var(--dsw-specific-sidebar-fill)`）。
+ * 表面背景统一由插件自有变量 `--cst-surface-bg` 控制（用户诉求：不再借用 shell token 语义）：
+ * - 对话区根（`.wSkVaW_root`）、详情区根（`ydkMvW_root`）→ 回退 `--dsw-alias-bg-base`；
+ * - 侧边栏列（`.pI_x6G_sidebarCol`）与侧边栏根（`.hHd-Xa_root`，二者都带
+ *   `--dsw-specific-sidebar-fill` 全区域背景，后者是之前「侧边栏不透」的漏网之鱼）→ 回退 sidebar-fill；
+ * - 变量未设置时回退值等于主题色，视觉零变化；壁纸激活时
+ *   `html[data-cst-wallpaper]` 把 `--cst-surface-bg` 置为 `transparent`，壁纸透出。
  *
- * 定位用 slots 运行时的 `data-slot` 包裹结构（div[data-slot="<name>"] > 内容），不依赖哈希类名；
+ * 定位用 slots 运行时的 `data-slot` 包裹结构，不依赖哈希类名；
  * `--dsw-alias-bg-base` token 本身不动（它还被输入框/按钮等小元素使用，不能全局覆盖）。
  * `:has()` 需要现代 Chromium（DSH web 目标环境满足）。
  */
 const WALLPAPER_RULES = [
-  `html[${ACTIVE_ATTR}] [data-slot="conversation"] > *,`,
-  `html[${ACTIVE_ATTR}] [data-slot="details"] > *,`,
-  `html[${ACTIVE_ATTR}] div:has(> [data-slot="sidebar"])`,
-  '{ background: transparent !important; }',
+  '[data-slot="conversation"] > *,',
+  '[data-slot="details"] > * {',
+  '  background: var(--cst-surface-bg, var(--dsw-alias-bg-base)) !important;',
+  '}',
+  'div:has(> [data-slot="sidebar"]),',
+  '[data-slot="sidebar"] > * {',
+  '  background: var(--cst-surface-bg, var(--dsw-specific-sidebar-fill)) !important;',
+  '}',
+  // 壁纸激活：表面背景透明；去掉输入框底部的 bg-base 渐变带（composerSeat 是
+  // conversation.session 槽包裹的相邻兄弟，见 wSkVaW_scrollBody 的子元素结构）。
+  `html[${ACTIVE_ATTR}] {`,
+  '  --cst-surface-bg: transparent;',
+  '}',
+  `html[${ACTIVE_ATTR}] [data-slot="conversation.session"] + * {`,
+  '  background: transparent !important;',
+  '}',
 ].join('\n')
 
 /** 确保全局样式注入（幂等；html 未置 ACTIVE_ATTR 时规则不生效）。 */
