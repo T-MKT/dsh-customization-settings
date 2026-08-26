@@ -147,20 +147,12 @@ const WALLPAPER_RULES = [
   `html[${ACTIVE_ATTR}] [data-slot="conversation.session"] + * {`,
   '  background: transparent !important;',
   '}',
-  // 侧边栏遮罩：壁纸激活时在侧边栏列上叠加自定义颜色的覆盖层（颜色/透明度由
-  // --cst-sidebar-mask-* 控制；未设置回退 sidebar-fill @ 0.6，保持侧边栏可读）。
+  // 侧边栏遮罩：壁纸激活时侧边栏列背景 = 自定义颜色按透明度与 transparent 混合
+  // （color-mix 不需要 stacking context，避免 sidebarCol 上的 isolation 把设置弹窗等
+  // 固定层困在 sidebarCol 的叠加上下文里——弹窗就渲染在 sidebar 槽内，z-index 会被困住）。
+  // 颜色/透明度由 --cst-sidebar-mask-* 控制；未设置回退 sidebar-fill @ 0.6。
   `html[${ACTIVE_ATTR}] div:has(> [data-slot="sidebar"]) {`,
-  '  isolation: isolate;',
-  '  position: relative;',
-  '}',
-  `html[${ACTIVE_ATTR}] div:has(> [data-slot="sidebar"])::after {`,
-  "  content: '';",
-  '  position: absolute;',
-  '  inset: 0;',
-  '  z-index: -1;',
-  '  background: var(--cst-sidebar-mask-color, var(--dsw-specific-sidebar-fill));',
-  '  opacity: var(--cst-sidebar-mask-opacity, 0.6);',
-  '  pointer-events: none;',
+  '  background: color-mix(in srgb, var(--cst-sidebar-mask-color, var(--dsw-specific-sidebar-fill)) calc(var(--cst-sidebar-mask-opacity, 0.6) * 100%), transparent) !important;',
   '}',
 ].join('\n')
 
