@@ -9,7 +9,7 @@ Generic UI customization settings for DeepSeek Harness.
 ### 👚 Appearance
 Adds an "Appearance" category to the left navigation of the Settings panel (with the same gear icon as "General"), providing full theme management:
 - **Preset theme library**: 5 presets (Dusk / Forest / Warm / Graphite / Violet) + a "Follow system" entry, applied on click;
-- **Wallpaper**: image (upload / URL / built-in), placement (fullscreen / conversation), mask color and opacity;
+- **Wallpaper**: image (upload / URL / built-in), placement (fullscreen / conversation), mask opacity (color adapts to the theme) and a custom sidebar mask (color and opacity);
 - **Theme colors**: 13 color tokens (brand / background / text / border / state / sidebar), edited separately for light and dark;
 - **Scheme management**: "My Themes" list — create / duplicate / rename / delete / set as current, switch anytime;
 - **Export / Import**: export a scheme as JSON and re-import to restore (including wallpaper references); invalid files are safely rejected;

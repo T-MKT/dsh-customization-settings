@@ -112,13 +112,12 @@ function toTokenSet(light: Palette, dark: Palette): TokenSet {
 const NO_WALLPAPER: Wallpaper = {
   image: null,
   placement: 'fullscreen',
-  maskColor: '#000000',
   maskOpacity: 0,
 }
 
-/** 构造一张全屏壁纸（按 preset 键引用，不导入壁纸资源）。 */
-function fullscreenWallpaper(image: string, maskColor: string, maskOpacity: number): Wallpaper {
-  return { image, placement: 'fullscreen', maskColor, maskOpacity }
+/** 构造一张全屏壁纸（按 preset 键引用，不导入壁纸资源；遮罩颜色固定为 bg-base，仅存透明度）。 */
+function fullscreenWallpaper(image: string, maskOpacity: number): Wallpaper {
+  return { image, placement: 'fullscreen', maskOpacity }
 }
 
 /** 组装一个预置 Theme：核心色板 → 完整 Palette → 13 token 双值。 */
@@ -150,7 +149,7 @@ export const PRESETS: Theme[] = [
   makeTheme(
     'preset.dusk',
     '暮蓝',
-    fullscreenWallpaper('preset:gradient-dusk', '#0b1220', 0.55),
+    fullscreenWallpaper('preset:gradient-dusk', 0.55),
     {
       brand: '#3b6fe0',
       bgBase: '#eef4fc',
@@ -174,7 +173,7 @@ export const PRESETS: Theme[] = [
   makeTheme(
     'preset.forest',
     '森林',
-    fullscreenWallpaper('preset:gradient-aurora', '#12240f', 0.5),
+    fullscreenWallpaper('preset:gradient-aurora', 0.5),
     {
       brand: '#388e3c',
       bgBase: '#f2f8f2',
@@ -246,7 +245,7 @@ export const PRESETS: Theme[] = [
   makeTheme(
     'preset.violet',
     '紫罗兰',
-    fullscreenWallpaper('preset:texture-clouds', '#0e1630', 0.45),
+    fullscreenWallpaper('preset:texture-clouds', 0.45),
     {
       brand: '#7048e8',
       bgBase: '#f6f3fb',

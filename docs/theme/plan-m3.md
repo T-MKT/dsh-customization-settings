@@ -50,7 +50,7 @@ src/
   "schemaVersion": 1,
   "name": "我的森林",
   "basePresetId": "preset.forest",
-  "wallpaper": { "image": "asset:<id> | preset:<key> | URL | null", "placement": "fullscreen", "maskColor": "#000000", "maskOpacity": 0.4 },
+  "wallpaper": { "image": "asset:<id> | preset:<key> | URL | null", "placement": "fullscreen", "maskOpacity": 0.4, "sidebarMask": { "color": "#000000", "opacity": 0.6 } },
   "tokenSet": { "colorScheme": "dual", "tokens": { "brand-primary": { "light": "#...", "dark": "#..." } } }
 }
 ```

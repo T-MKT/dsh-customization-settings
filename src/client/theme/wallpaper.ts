@@ -2,7 +2,8 @@
  * 壁纸渲染层（架构文档 §5.2 / §5.3）。
  *
  * 纯逻辑 + DOM 写入，不依赖 React：
- * - 把当前生效壁纸写入根元素 4 个 `--cst-wallpaper-*` CSS 变量（供预览缩略图等消费）；
+ * - 把当前生效壁纸写入根元素 `--cst-wallpaper-*` CSS 变量（供预览缩略图等消费；
+ *   主遮罩颜色固定为 bg-base，不再单独成变量）+ 侧边栏遮罩 `--cst-sidebar-mask-*`；
  * - 挂载真正的壁纸层到应用框架/对话区列（见 applyWallpaper，修复「壁纸不显示」）；
  * - 返回 disposer，调用后变量复原、壁纸层移除、容器内联样式复原。
  * - 图片来源三通道：内置预置（`preset:<key>` → data URI）、宿主上传资产
@@ -60,13 +61,16 @@ export const PRESET_WALLPAPERS: Record<PresetWallpaperKey, PresetWallpaper> = {
   },
 }
 
-/** 4 个壁纸 CSS 变量及其基础默认值（架构 §5.3）。 */
+/** 壁纸 CSS 变量及其基础默认值（架构 §5.3；主遮罩颜色不再单独成变量，固定为 bg-base）。 */
 const WALLPAPER_DEFAULTS = {
   '--cst-wallpaper-image': 'none',
   '--cst-wallpaper-placement': 'none',
-  '--cst-wallpaper-mask-color': '#000000',
   '--cst-wallpaper-mask-opacity': '0',
 } as const
+
+/** 侧边栏遮罩 CSS 变量（自定义颜色 + 透明度；未设置时 CSS 规则回退 sidebar-fill @ 0.6）。 */
+const SIDEBAR_MASK_COLOR_VAR = '--cst-sidebar-mask-color'
+const SIDEBAR_MASK_OPACITY_VAR = '--cst-sidebar-mask-opacity'
 
 /**
  * 解析壁纸图片源为可直接作为 `background-image` 值的字符串（一律 `url("...")` 包裹）：
@@ -98,7 +102,8 @@ export function resolveWallpaperSource(image: string): string | null {
  * - `fullscreen` → 挂到应用框架（AppFrame 的 frame 网格容器），垫在列内容之下；
  * - `conversation` → 挂到对话区列（AppFrame 的 centerCol），仅对话区可见；
  * - 目标容器先 `isolation: isolate` 成为叠加上下文，壁纸层以 `z-index: -1`
- *   垫在容器背景之上、内容之下；遮罩以子层（maskColor + maskOpacity）叠加；
+ *   垫在容器背景之上、内容之下；主遮罩以子层（颜色 = bg-base 自适应 + maskOpacity）叠加，
+ *   侧边栏遮罩为侧边栏列上的自定义颜色覆盖层（见 WALLPAPER_RULES）；
  * - 对话区/详情区根容器与侧边栏列自带不透明背景（bg-base / sidebar-fill），
  *   壁纸激活时经 `data-cst-wallpaper` 属性 + 全局样式把它们透明化（见 WALLPAPER_RULES）；
  * - 框架渲染晚于插件 apply 时，用 MutationObserver 监听 `#root` 待框架出现后补挂。
@@ -141,6 +146,21 @@ const WALLPAPER_RULES = [
   '}',
   `html[${ACTIVE_ATTR}] [data-slot="conversation.session"] + * {`,
   '  background: transparent !important;',
+  '}',
+  // 侧边栏遮罩：壁纸激活时在侧边栏列上叠加自定义颜色的覆盖层（颜色/透明度由
+  // --cst-sidebar-mask-* 控制；未设置回退 sidebar-fill @ 0.6，保持侧边栏可读）。
+  `html[${ACTIVE_ATTR}] div:has(> [data-slot="sidebar"]) {`,
+  '  isolation: isolate;',
+  '  position: relative;',
+  '}',
+  `html[${ACTIVE_ATTR}] div:has(> [data-slot="sidebar"])::after {`,
+  "  content: '';",
+  '  position: absolute;',
+  '  inset: 0;',
+  '  z-index: -1;',
+  '  background: var(--cst-sidebar-mask-color, var(--dsw-specific-sidebar-fill));',
+  '  opacity: var(--cst-sidebar-mask-opacity, 0.6);',
+  '  pointer-events: none;',
   '}',
 ].join('\n')
 
@@ -217,7 +237,7 @@ function prepareTarget(target: HTMLElement): () => void {
   }
 }
 
-/** 构建壁纸层（图片背景 + 遮罩子层）并挂到目标容器最底层。 */
+/** 构建壁纸层（图片背景 + 遮罩子层，遮罩颜色固定为 bg-base 随明暗自适应）并挂到目标容器最底层。 */
 function buildLayer(wallpaper: Wallpaper, source: string, target: HTMLElement): HTMLDivElement {
   const layer = document.createElement('div')
   layer.setAttribute(LAYER_ATTR, '')
@@ -233,7 +253,7 @@ function buildLayer(wallpaper: Wallpaper, source: string, target: HTMLElement): 
   mask.setAttribute(MASK_ATTR, '')
   mask.style.position = 'absolute'
   mask.style.inset = '0'
-  mask.style.background = wallpaper.maskColor
+  mask.style.background = 'var(--dsw-alias-bg-base)'
   mask.style.opacity = String(wallpaper.maskOpacity)
 
   layer.appendChild(mask)
@@ -246,8 +266,9 @@ function buildLayer(wallpaper: Wallpaper, source: string, target: HTMLElement): 
  *
  * - `wallpaper` 为 `null` 或其 `image` 为 `null`：视为「无壁纸」，写入全部默认值、不挂层；
  * - 图片源解析失败（未知 `preset:` 键等）时不挂层（避免出现无图遮罩）；
+ * - 侧边栏遮罩（sidebarMask）写入 `--cst-sidebar-mask-*` 变量（未设置时清除，渲染回退默认）；
  * - `document` 不可用（如 SSR）时安全跳过，仍返回可安全调用的 disposer；
- * - disposer 复原 4 个变量、移除壁纸层、断开补挂监听并复原目标容器内联样式。
+ * - disposer 复原壁纸变量、清除侧边栏遮罩变量、移除壁纸层、断开补挂监听并复原目标容器内联样式。
  */
 export function applyWallpaper(wallpaper: Wallpaper | null): () => void {
   const root = typeof document !== 'undefined' ? document.documentElement : null
@@ -257,7 +278,6 @@ export function applyWallpaper(wallpaper: Wallpaper | null): () => void {
       ? {
           '--cst-wallpaper-image': resolveWallpaperSource(wallpaper.image) ?? WALLPAPER_DEFAULTS['--cst-wallpaper-image'],
           '--cst-wallpaper-placement': wallpaper.placement,
-          '--cst-wallpaper-mask-color': wallpaper.maskColor,
           '--cst-wallpaper-mask-opacity': String(wallpaper.maskOpacity),
         }
       : { ...WALLPAPER_DEFAULTS }
@@ -265,6 +285,15 @@ export function applyWallpaper(wallpaper: Wallpaper | null): () => void {
   if (root) {
     for (const [name, value] of Object.entries(values)) {
       root.style.setProperty(name, value)
+    }
+    // 侧边栏遮罩变量：有设置则写入，无设置则清除（CSS 规则回退 sidebar-fill @ 0.6）
+    const sidebarMask = wallpaper?.sidebarMask
+    if (sidebarMask) {
+      root.style.setProperty(SIDEBAR_MASK_COLOR_VAR, sidebarMask.color)
+      root.style.setProperty(SIDEBAR_MASK_OPACITY_VAR, String(sidebarMask.opacity))
+    } else {
+      root.style.removeProperty(SIDEBAR_MASK_COLOR_VAR)
+      root.style.removeProperty(SIDEBAR_MASK_OPACITY_VAR)
     }
   }
 
@@ -309,6 +338,8 @@ export function applyWallpaper(wallpaper: Wallpaper | null): () => void {
       for (const [name, value] of Object.entries(WALLPAPER_DEFAULTS)) {
         root.style.setProperty(name, value)
       }
+      root.style.removeProperty(SIDEBAR_MASK_COLOR_VAR)
+      root.style.removeProperty(SIDEBAR_MASK_OPACITY_VAR)
       if (activated) {
         unmarkActive()
         activated = false

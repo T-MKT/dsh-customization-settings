@@ -14,12 +14,18 @@ export interface ThemeSettings {
   customThemes: CustomTheme[]
 }
 
+/** 侧边栏遮罩 schema（自定义颜色 + 透明度）。 */
+const SidebarMaskSchema = z.object({
+  color: z.string(),
+  opacity: z.number(),
+})
+
 /** 壁纸差异 schema：字段均未 required，缺省即「该维度未修改」。 */
 const WallpaperDiffSchema = z.object({
   image: z.union([z.string(), z.const(null)]),
   placement: z.union([z.const('fullscreen'), z.const('conversation')]),
-  maskColor: z.string(),
   maskOpacity: z.number(),
+  sidebarMask: SidebarMaskSchema,
 })
 
 /**

@@ -34,7 +34,7 @@
   position: absolute;
   inset: 0;
 
-  background: var(--cst-wallpaper-mask-color);
+  background: var(--dsw-alias-bg-base);
   opacity: var(--cst-wallpaper-mask-opacity);
 }
 
@@ -246,4 +246,32 @@
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
   line-height: 22px;
+}
+
+/* 侧边栏遮罩「恢复默认」：小型文字按钮（范式同 ThemeEditor.restoreButton） */
+.restoreButton {
+  align-self: flex-start;
+  box-sizing: border-box;
+  padding: 2px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.restoreButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-brand-primary);
+}
+
+/* 侧边栏遮罩提示文案 */
+.maskHint {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
 }

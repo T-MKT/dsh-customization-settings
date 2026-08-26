@@ -48,8 +48,18 @@ function isHexColor(value: string): boolean {
   return /^#[0-9a-fA-F]{6}$/.test(value)
 }
 
-/** type=color 不接受非法值：maskColor 非法时回退纯黑。 */
+/** type=color 不接受非法值：颜色非法时回退纯黑。 */
 const FALLBACK_COLOR = '#000000'
+
+/** 侧边栏遮罩未设置时的回退透明度（颜色回退当前主题 sidebar-fill token）。 */
+const SIDEBAR_MASK_DEFAULT_OPACITY = 0.6
+
+/** 解析当前主题的侧边栏填充色（供侧边栏遮罩未设置时显示默认色；取不到回退纯黑）。 */
+function resolveSidebarFillColor(): string {
+  if (typeof document === 'undefined' || !document.body) return FALLBACK_COLOR
+  const value = getComputedStyle(document.body).getPropertyValue('--dsw-specific-sidebar-fill').trim()
+  return isHexColor(value) ? value.toLowerCase() : FALLBACK_COLOR
+}
 
 export function WallpaperEditor({ value, onChange, onUpload }: WallpaperEditorProps): JSX.Element {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -71,11 +81,10 @@ export function WallpaperEditor({ value, onChange, onUpload }: WallpaperEditorPr
     setUrlDraft(image && !image.startsWith('preset:') && !image.startsWith('asset:') ? image : '')
   }, [value.image])
 
-  // 预览缩略图四变量（无壁纸时 image 显式给 'none'），范式同 PresetGrid。
+  // 预览缩略图四变量（无壁纸时 image 显式给 'none'；遮罩颜色固定为 bg-base），范式同 PresetGrid。
   const thumbVars = {
     '--cst-wallpaper-image': value.image ? resolveWallpaperSource(value.image) ?? 'none' : 'none',
     '--cst-wallpaper-placement': value.placement,
-    '--cst-wallpaper-mask-color': value.maskColor,
     '--cst-wallpaper-mask-opacity': String(value.maskOpacity),
   } as CSSProperties
 
@@ -83,9 +92,18 @@ export function WallpaperEditor({ value, onChange, onUpload }: WallpaperEditorPr
   const presetValue =
     value.image !== null && value.image.startsWith('preset:') ? value.image : ''
 
-  // 遮罩颜色非法时回退 '#000000'（type=color 硬约束）；透明度 0~1 → 0~100 百分比。
-  const maskColor = isHexColor(value.maskColor) ? value.maskColor : FALLBACK_COLOR
+  // 主遮罩透明度 0~1 → 0~100 百分比（颜色固定 bg-base，无自定义）。
   const maskPercent = Math.round(value.maskOpacity * 100)
+
+  // 侧边栏遮罩当前生效值：未设置时显示回退默认（颜色 = 主题 sidebar-fill 解析值）。
+  const effectiveSidebarMask = value.sidebarMask ?? {
+    color: resolveSidebarFillColor(),
+    opacity: SIDEBAR_MASK_DEFAULT_OPACITY,
+  }
+  const sidebarMaskColor = isHexColor(effectiveSidebarMask.color)
+    ? effectiveSidebarMask.color
+    : FALLBACK_COLOR
+  const sidebarMaskPercent = Math.round(effectiveSidebarMask.opacity * 100)
 
   /** 提交 URL draft：trim 后非空 → 作为 image；空 → 无壁纸。 */
   function commitUrl(): void {
@@ -189,19 +207,10 @@ export function WallpaperEditor({ value, onChange, onUpload }: WallpaperEditorPr
         </div>
       </section>
 
-      {/* 遮罩：颜色 + 透明度滑块（右侧百分比文字） */}
+      {/* 主遮罩：透明度滑块（颜色固定为 bg-base，随明暗自适应；不提供自定义颜色） */}
       <section className={styles.block}>
         <h3 className={styles.blockTitle}>遮罩</h3>
         <div className={styles.maskRow}>
-          <label className={styles.maskField}>
-            <span className={styles.maskLabel}>颜色</span>
-            <input
-              type="color"
-              className={styles.colorInput}
-              value={maskColor}
-              onChange={(event) => onChange({ ...value, maskColor: event.target.value })}
-            />
-          </label>
           <label className={styles.maskField}>
             <span className={styles.maskLabel}>透明度</span>
             <input
@@ -217,6 +226,54 @@ export function WallpaperEditor({ value, onChange, onUpload }: WallpaperEditorPr
             <span className={styles.opacityValue}>{maskPercent}%</span>
           </label>
         </div>
+      </section>
+
+      {/* 侧边栏遮罩：自定义颜色 + 透明度（壁纸激活时叠加在侧边栏区域上） */}
+      <section className={styles.block}>
+        <h3 className={styles.blockTitle}>侧边栏遮罩</h3>
+        <div className={styles.maskRow}>
+          <label className={styles.maskField}>
+            <span className={styles.maskLabel}>颜色</span>
+            <input
+              type="color"
+              className={styles.colorInput}
+              value={sidebarMaskColor}
+              onChange={(event) =>
+                onChange({
+                  ...value,
+                  sidebarMask: { ...effectiveSidebarMask, color: event.target.value },
+                })
+              }
+            />
+          </label>
+          <label className={styles.maskField}>
+            <span className={styles.maskLabel}>透明度</span>
+            <input
+              type="range"
+              className={styles.opacityInput}
+              min={0}
+              max={100}
+              value={sidebarMaskPercent}
+              onChange={(event) =>
+                onChange({
+                  ...value,
+                  sidebarMask: { ...effectiveSidebarMask, opacity: Number(event.target.value) / 100 },
+                })
+              }
+            />
+            <span className={styles.opacityValue}>{sidebarMaskPercent}%</span>
+          </label>
+        </div>
+        {value.sidebarMask && (
+          <button
+            type="button"
+            className={styles.restoreButton}
+            onClick={() => onChange({ ...value, sidebarMask: undefined })}
+          >
+            恢复默认
+          </button>
+        )}
+        <p className={styles.maskHint}>未设置时颜色随主题侧边栏色，透明度 60%；仅壁纸激活时生效。</p>
       </section>
     </div>
   )

@@ -157,7 +157,7 @@
   position: absolute;
   inset: 0;
 
-  background: var(--cst-wallpaper-mask-color);
+  background: var(--dsw-alias-bg-base);
   opacity: var(--cst-wallpaper-mask-opacity);
 }
 

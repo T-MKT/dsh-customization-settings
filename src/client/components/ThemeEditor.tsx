@@ -80,7 +80,6 @@ const MODE_OPTIONS: ReadonlyArray<{ value: 'light' | 'dark'; label: string }> = 
 const DEFAULT_WALLPAPER: Wallpaper = {
   image: null,
   placement: 'fullscreen',
-  maskColor: '#000000',
   maskOpacity: 0,
 }
 
@@ -132,8 +131,14 @@ export function ThemeEditor({
     const diff: WallpaperDiff = {}
     if (!baseWallpaper || next.image !== baseWallpaper.image) diff.image = next.image
     if (!baseWallpaper || next.placement !== baseWallpaper.placement) diff.placement = next.placement
-    if (!baseWallpaper || next.maskColor !== baseWallpaper.maskColor) diff.maskColor = next.maskColor
     if (!baseWallpaper || next.maskOpacity !== baseWallpaper.maskOpacity) diff.maskOpacity = next.maskOpacity
+    // 侧边栏遮罩：与基底结构比较；用户设置过（非 undefined）才进差异。
+    const baseMask = baseWallpaper?.sidebarMask
+    const nextMask = next.sidebarMask
+    const maskChanged =
+      (nextMask !== undefined) !== (baseMask !== undefined)
+      || (nextMask !== undefined && baseMask !== undefined && (nextMask.color !== baseMask.color || nextMask.opacity !== baseMask.opacity))
+    if (maskChanged && nextMask !== undefined) diff.sidebarMask = nextMask
     setDiffs((d) => {
       if (Object.keys(diff).length === 0) {
         const rest = { ...d }
@@ -208,13 +213,12 @@ export function ThemeEditor({
     URL.revokeObjectURL(url)
   }
 
-  // 壁纸预览框四变量（无壁纸时 image 显式给 'none'），范式同 PresetGrid/WallpaperEditor 缩略图。
+  // 壁纸预览框四变量（无壁纸时 image 显式给 'none'；遮罩颜色固定为 bg-base），范式同 PresetGrid/WallpaperEditor 缩略图。
   const previewVars = {
     '--cst-wallpaper-image': effectiveWallpaper.image
       ? resolveWallpaperSource(effectiveWallpaper.image) ?? 'none'
       : 'none',
     '--cst-wallpaper-placement': effectiveWallpaper.placement,
-    '--cst-wallpaper-mask-color': effectiveWallpaper.maskColor,
     '--cst-wallpaper-mask-opacity': String(effectiveWallpaper.maskOpacity),
   } as CSSProperties
 

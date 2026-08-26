@@ -80,14 +80,13 @@ export function PresetGrid({
       {presets.map((theme) => {
         const active = theme.id === activeId
         const wallpaper = theme.wallpaper
-        // 每张卡片始终自设 4 个壁纸变量（无壁纸时 image 显式给 'none'），
-        // 不依赖全局变量，避免卡片之间相互串色。
+        // 每张卡片始终自设壁纸变量（无壁纸时 image 显式给 'none'），
+        // 不依赖全局变量，避免卡片之间相互串色；遮罩颜色固定为 bg-base。
         const thumbVars = {
           '--cst-wallpaper-image': wallpaper.image
             ? resolveWallpaperSource(wallpaper.image) ?? 'none'
             : 'none',
           '--cst-wallpaper-placement': wallpaper.placement,
-          '--cst-wallpaper-mask-color': wallpaper.maskColor,
           '--cst-wallpaper-mask-opacity': String(wallpaper.maskOpacity),
         } as CSSProperties
 

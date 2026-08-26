@@ -10,14 +10,22 @@ import { THEME_TOKEN_KEYS } from './tokens.js'
 import { findPreset } from './presets.js'
 import { assetUrl } from './assets.js'
 
+/** 侧边栏专属遮罩（自定义颜色 + 透明度；渲染为侧边栏区域上的覆盖层，保证侧边栏文字可读）。 */
+export interface SidebarMask {
+  /** #rrggbb */
+  color: string
+  /** 0~1 */
+  opacity: number
+}
+
 export interface Wallpaper {
   /** 'preset:<key>' | URL | null（无壁纸） */
   image: string | null
   placement: 'fullscreen' | 'conversation'
-  /** #rrggbb */
-  maskColor: string
-  /** 0~1 */
+  /** 主遮罩透明度 0~1（颜色固定为 --dsw-alias-bg-base，随明暗自适应，不提供自定义颜色）。 */
   maskOpacity: number
+  /** 侧边栏专属遮罩（可选；未设置时渲染回退 --dsw-specific-sidebar-fill @ 0.6）。 */
+  sidebarMask?: SidebarMask
 }
 
 export interface TokenSet {
@@ -69,18 +77,31 @@ export function validateTheme(theme: unknown): string | null {
   }
 
   if (!isRecord(theme.wallpaper)) return 'wallpaper 必须是对象'
-  const { image, placement, maskColor, maskOpacity } = theme.wallpaper
+  const { image, placement, maskOpacity, sidebarMask } = theme.wallpaper
   if (image !== null && typeof image !== 'string') return 'wallpaper.image 必须是字符串或 null'
   if (placement !== 'fullscreen' && placement !== 'conversation') {
     return 'wallpaper.placement 必须是 "fullscreen" 或 "conversation"'
   }
-  if (typeof maskColor !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(maskColor)) {
-    return 'wallpaper.maskColor 必须是 #rrggbb 格式的十六进制颜色'
-  }
   if (typeof maskOpacity !== 'number' || Number.isNaN(maskOpacity) || maskOpacity < 0 || maskOpacity > 1) {
     return 'wallpaper.maskOpacity 必须是 0~1 之间的数字'
   }
+  if (sidebarMask !== undefined) {
+    const err = validateSidebarMask(sidebarMask)
+    if (err) return `wallpaper.sidebarMask ${err}`
+  }
 
+  return null
+}
+
+/** 校验侧边栏遮罩形状；合法返回 `null`，否则返回中文错误信息。 */
+function validateSidebarMask(value: unknown): string | null {
+  if (!isRecord(value)) return '必须是对象'
+  if (typeof value.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(value.color)) {
+    return 'color 必须是 #rrggbb 格式的十六进制颜色'
+  }
+  if (typeof value.opacity !== 'number' || Number.isNaN(value.opacity) || value.opacity < 0 || value.opacity > 1) {
+    return 'opacity 必须是 0~1 之间的数字'
+  }
   return null
 }
 
@@ -93,7 +114,7 @@ export function isDual(tokenSet: TokenSet): boolean {
  * 壁纸差异（架构文档 §7.2）：只含用户改过的维度，未改项保持 `undefined`，
  * 渲染时从基底（basePresetId 对应主题或 shell 默认）继承。
  */
-export type WallpaperDiff = Partial<Pick<Wallpaper, 'image' | 'placement' | 'maskColor' | 'maskOpacity'>>
+export type WallpaperDiff = Partial<Pick<Wallpaper, 'image' | 'placement' | 'maskOpacity' | 'sidebarMask'>>
 
 /**
  * 自定义主题差异模型：只存用户改过的维度。
@@ -136,21 +157,22 @@ export function validateCustomTheme(theme: unknown): string | null {
   const { wallpaper } = theme.diffs
   if (wallpaper !== undefined) {
     if (!isRecord(wallpaper)) return 'diffs.wallpaper 必须是对象'
-    const { image, placement, maskColor, maskOpacity } = wallpaper
+    const { image, placement, maskOpacity, sidebarMask } = wallpaper
     if (image !== undefined && image !== null && typeof image !== 'string') {
       return 'diffs.wallpaper.image 必须是字符串或 null'
     }
     if (placement !== undefined && placement !== 'fullscreen' && placement !== 'conversation') {
       return 'diffs.wallpaper.placement 必须是 "fullscreen" 或 "conversation"'
     }
-    if (maskColor !== undefined && (typeof maskColor !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(maskColor))) {
-      return 'diffs.wallpaper.maskColor 必须是 #rrggbb 格式的十六进制颜色'
-    }
     if (
       maskOpacity !== undefined
       && (typeof maskOpacity !== 'number' || Number.isNaN(maskOpacity) || maskOpacity < 0 || maskOpacity > 1)
     ) {
       return 'diffs.wallpaper.maskOpacity 必须是 0~1 之间的数字'
+    }
+    if (sidebarMask !== undefined) {
+      const err = validateSidebarMask(sidebarMask)
+      if (err) return `diffs.wallpaper.sidebarMask ${err}`
     }
   }
 
@@ -186,7 +208,7 @@ export function newCustomThemeId(): string {
 
 /**
  * 合并壁纸基底与差异：`diff` 字段存在时取差异值，否则取 `base` 值，
- * 否则取默认（placement 'fullscreen'、maskColor '#000000'、maskOpacity 0、image null）。
+ * 否则取默认（placement 'fullscreen'、maskOpacity 0、image null、无侧边栏遮罩）。
  * `base` 与 `diff` 都为空（undefined）时返回 `null`（无壁纸）。
  */
 export function mergeWallpaper(
@@ -195,11 +217,12 @@ export function mergeWallpaper(
 ): Wallpaper | null {
   if (base === undefined && diff === undefined) return null
   const baseWallpaper = base ?? null
+  const sidebarMask = diff?.sidebarMask !== undefined ? diff.sidebarMask : baseWallpaper?.sidebarMask
   return {
     image: diff?.image !== undefined ? diff.image : baseWallpaper?.image ?? null,
     placement: diff?.placement !== undefined ? diff.placement : baseWallpaper?.placement ?? 'fullscreen',
-    maskColor: diff?.maskColor !== undefined ? diff.maskColor : baseWallpaper?.maskColor ?? '#000000',
     maskOpacity: diff?.maskOpacity !== undefined ? diff.maskOpacity : baseWallpaper?.maskOpacity ?? 0,
+    ...(sidebarMask !== undefined ? { sidebarMask } : {}),
   }
 }
 
@@ -303,24 +326,32 @@ export async function parseTheme(json: string): Promise<CustomTheme> {
     throw new Error(`导入失败：basePresetId 对应的预置主题不存在（${basePresetId}）`)
   }
 
-  // ---- wallpaper（null 或完整 Wallpaper 形状） ----
+  // ---- wallpaper（null 或完整 Wallpaper 形状；旧导出文件可能带 maskColor，忽略该键） ----
   let wallpaper: Wallpaper | null = null
   if (raw.wallpaper !== null) {
     if (!isRecord(raw.wallpaper)) throw new Error('导入失败：wallpaper 必须是对象或 null')
-    const { image, placement, maskColor, maskOpacity } = raw.wallpaper
+    const { image, placement, maskOpacity, sidebarMask } = raw.wallpaper
     if (image !== null && typeof image !== 'string') {
       throw new Error('导入失败：wallpaper.image 必须是字符串或 null')
     }
     if (placement !== 'fullscreen' && placement !== 'conversation') {
       throw new Error('导入失败：wallpaper.placement 必须是 "fullscreen" 或 "conversation"')
     }
-    if (typeof maskColor !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(maskColor)) {
-      throw new Error('导入失败：wallpaper.maskColor 必须是 #rrggbb 十六进制颜色')
-    }
     if (typeof maskOpacity !== 'number' || Number.isNaN(maskOpacity) || maskOpacity < 0 || maskOpacity > 1) {
       throw new Error('导入失败：wallpaper.maskOpacity 必须是 0~1 之间的数字')
     }
-    wallpaper = { image, placement, maskColor, maskOpacity }
+    let parsedSidebarMask: SidebarMask | undefined
+    if (sidebarMask !== undefined) {
+      const err = validateSidebarMask(sidebarMask)
+      if (err) throw new Error(`导入失败：wallpaper.sidebarMask ${err}`)
+      parsedSidebarMask = sidebarMask as SidebarMask
+    }
+    wallpaper = {
+      image,
+      placement,
+      maskOpacity,
+      ...(parsedSidebarMask !== undefined ? { sidebarMask: parsedSidebarMask } : {}),
+    }
   }
 
   // ---- tokenSet（仅支持 dual：本插件差异模型为 light/dark 双值） ----
@@ -360,8 +391,13 @@ export async function parseTheme(json: string): Promise<CustomTheme> {
     const diff: WallpaperDiff = {}
     if (!baseWallpaper || wallpaper.image !== baseWallpaper.image) diff.image = wallpaper.image
     if (!baseWallpaper || wallpaper.placement !== baseWallpaper.placement) diff.placement = wallpaper.placement
-    if (!baseWallpaper || wallpaper.maskColor !== baseWallpaper.maskColor) diff.maskColor = wallpaper.maskColor
     if (!baseWallpaper || wallpaper.maskOpacity !== baseWallpaper.maskOpacity) diff.maskOpacity = wallpaper.maskOpacity
+    const baseMask = baseWallpaper?.sidebarMask
+    const nextMask = wallpaper.sidebarMask
+    const maskChanged =
+      (nextMask !== undefined) !== (baseMask !== undefined)
+      || (nextMask !== undefined && baseMask !== undefined && (nextMask.color !== baseMask.color || nextMask.opacity !== baseMask.opacity))
+    if (maskChanged && nextMask !== undefined) diff.sidebarMask = nextMask
     if (Object.keys(diff).length > 0) diffs.wallpaper = diff
   }
   const tokenDiffs: ThemeDiffs['tokenDiffs'] = {}
