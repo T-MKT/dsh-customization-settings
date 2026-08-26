@@ -7,6 +7,7 @@ import { bindThemeStore } from './theme/store.js'
 import type { ThemeStore } from './theme/store.js'
 import { ThemeSection } from './components/ThemeSection.js'
 import { installAppearanceEntryLink } from './appearanceEntryLink.js'
+import { installSettingsNavStyle } from './settingsNavStyle.js'
 
 /** 必填服务：slots 注册设置分区；settingsScope 绑定主题偏好；theme 合成主题色板。 */
 export const inject = ['slots', 'settingsScope', 'theme']
@@ -30,6 +31,9 @@ export function apply(ctx: ClientContext): void {
 
   // 在「通用设置 → 外观」快捷行内注入指向本「外观」分区的入口链接。
   ctx.effect(() => installAppearanceEntryLink())
+
+  // 注入设置弹窗导航单元格（navCell）的 hover/active 样式覆盖（alias 交互色替代 specific 纯色）。
+  ctx.effect(() => installSettingsNavStyle())
 
   const injected = (): { service: ThemeService; store: ThemeStore; presets: readonly Theme[] } => ({
     service,
