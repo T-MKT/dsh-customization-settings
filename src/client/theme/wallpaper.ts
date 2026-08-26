@@ -107,15 +107,21 @@ const LAYER_ATTR = 'data-cst-wallpaper-layer'
 /** 遮罩子层标记。 */
 const MASK_ATTR = 'data-cst-wallpaper-mask'
 
-/** 应用框架容器（AppFrame 的 frame div）：`#root` 下带内联 grid-template-columns 的网格容器。 */
+/**
+ * 应用框架容器（AppFrame 的 frame div）：`#root` 下带内联 grid-template-columns 的网格容器。
+ *
+ * 匹配信号：内联 `grid-template-columns` 含 `1fr`（中列轨道；CSSOM 会把 React 写入的
+ * `minmax(0, 1fr)` 序列化为 `minmax(0px, 1fr)`，故只匹配 `1fr` 子串）+ 计算样式为
+ * grid 且 position: relative（frame 的布局契约），排除页面内其他内联网格。
+ */
 function findFrame(): HTMLElement | null {
   const root = document.getElementById('root')
   if (!root) return null
   for (const el of Array.from(root.querySelectorAll<HTMLElement>('div'))) {
     const inline = el.style.gridTemplateColumns
-    if (inline && inline.includes('minmax(0, 1fr)') && getComputedStyle(el).display === 'grid') {
-      return el
-    }
+    if (!inline || !inline.includes('1fr')) continue
+    const cs = getComputedStyle(el)
+    if (cs.display === 'grid' && cs.position === 'relative') return el
   }
   return null
 }
