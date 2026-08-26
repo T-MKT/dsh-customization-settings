@@ -99,6 +99,8 @@ export function resolveWallpaperSource(image: string): string | null {
  * - `conversation` → 挂到对话区列（AppFrame 的 centerCol），仅对话区可见；
  * - 目标容器先 `isolation: isolate` 成为叠加上下文，壁纸层以 `z-index: -1`
  *   垫在容器背景之上、内容之下；遮罩以子层（maskColor + maskOpacity）叠加；
+ * - 对话区/详情区根容器与侧边栏列自带不透明背景（bg-base / sidebar-fill），
+ *   壁纸激活时经 `data-cst-wallpaper` 属性 + 全局样式把它们透明化（见 WALLPAPER_RULES）；
  * - 框架渲染晚于插件 apply 时，用 MutationObserver 监听 `#root` 待框架出现后补挂。
  */
 
@@ -106,6 +108,57 @@ export function resolveWallpaperSource(image: string): string | null {
 const LAYER_ATTR = 'data-cst-wallpaper-layer'
 /** 遮罩子层标记。 */
 const MASK_ATTR = 'data-cst-wallpaper-mask'
+/** html 上的壁纸激活标记：有壁纸时置位，驱动全局样式把全区域表面透明化（让壁纸透出）。 */
+const ACTIVE_ATTR = 'data-cst-wallpaper'
+/** 全局样式标签标记。 */
+const STYLE_ATTR = 'data-cst-wallpaper-rules'
+
+/**
+ * 壁纸激活时的全局样式：仅把三个「全区域不透明表面」透明化，壁纸才能透出——
+ * - 对话区根容器（`.wSkVaW_root`，`background: var(--dsw-alias-bg-base)`，铺满对话区列）；
+ * - 详情区根容器（`ydkMvW_root`，同样 bg-base）；
+ * - 侧边栏列（`.pI_x6G_sidebarCol`，`background: var(--dsw-specific-sidebar-fill)`）。
+ *
+ * 定位用 slots 运行时的 `data-slot` 包裹结构（div[data-slot="<name>"] > 内容），不依赖哈希类名；
+ * `--dsw-alias-bg-base` token 本身不动（它还被输入框/按钮等小元素使用，不能全局覆盖）。
+ * `:has()` 需要现代 Chromium（DSH web 目标环境满足）。
+ */
+const WALLPAPER_RULES = [
+  `html[${ACTIVE_ATTR}] [data-slot="conversation"] > *,`,
+  `html[${ACTIVE_ATTR}] [data-slot="details"] > *,`,
+  `html[${ACTIVE_ATTR}] div:has(> [data-slot="sidebar"])`,
+  '{ background: transparent !important; }',
+].join('\n')
+
+/** 确保全局样式注入（幂等；html 未置 ACTIVE_ATTR 时规则不生效）。 */
+function ensureWallpaperStyles(): void {
+  if (typeof document === 'undefined') return
+  if (document.querySelector(`style[${STYLE_ATTR}]`)) return
+  const style = document.createElement('style')
+  style.setAttribute(STYLE_ATTR, '')
+  style.textContent = WALLPAPER_RULES
+  document.head.appendChild(style)
+}
+
+/**
+ * ACTIVE_ATTR 激活引用计数：同一时刻可能有多个 applyWallpaper 会话（防御并发），
+ * 任一 dispose 都不能在仍有会话激活时移除标记；计数归零才移除。
+ */
+let activeCount = 0
+
+/** 置位激活标记（首个会话激活时）。 */
+function markActive(): void {
+  if (typeof document === 'undefined') return
+  if (activeCount === 0) document.documentElement.setAttribute(ACTIVE_ATTR, 'active')
+  activeCount++
+}
+
+/** 撤销一次激活标记（最后一个会话结束时移除）。 */
+function unmarkActive(): void {
+  if (typeof document === 'undefined') return
+  activeCount = Math.max(0, activeCount - 1)
+  if (activeCount === 0) document.documentElement.removeAttribute(ACTIVE_ATTR)
+}
 
 /**
  * 应用框架容器（AppFrame 的 frame div）：`#root` 下带内联 grid-template-columns 的网格容器。
@@ -205,9 +258,15 @@ export function applyWallpaper(wallpaper: Wallpaper | null): () => void {
   let layer: HTMLDivElement | null = null
   let observer: MutationObserver | null = null
   let restoreTarget: (() => void) | null = null
+  /** 本次 apply 是否置位了 ACTIVE_ATTR（disposer 只撤销自己参与的激活）。 */
+  let activated = false
   if (typeof document !== 'undefined' && wallpaper && wallpaper.image !== null) {
     const source = resolveWallpaperSource(wallpaper.image)
     if (source) {
+      // 置位激活标记 + 注入全局样式：全区域表面（对话区/详情区根、侧边栏列）透明化，壁纸透出
+      ensureWallpaperStyles()
+      markActive()
+      activated = true
       const mount = (): void => {
         if (layer) return
         // 幂等清理：同页可能存在上一次未 dispose 的旧层（防御性）
@@ -235,6 +294,10 @@ export function applyWallpaper(wallpaper: Wallpaper | null): () => void {
     if (root) {
       for (const [name, value] of Object.entries(WALLPAPER_DEFAULTS)) {
         root.style.setProperty(name, value)
+      }
+      if (activated) {
+        unmarkActive()
+        activated = false
       }
     }
     layer?.remove()
