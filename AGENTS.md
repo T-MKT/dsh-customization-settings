@@ -8,7 +8,34 @@
 
 不要替我 commit 代码，除非我在提示词中或者 plan 中允许。
 
-若 commit，**不要帮我 push 代码**。不 push 让我在本地有 review 的机会以防止在远程仓库堆屎。
+若 commit，**不要帮我 push 代码**。
+
+Do not submit vague AI-generated commit/PR text. The human author must understand the change well enough to explain the code, edge cases, and why the approach fits this repository.
+
+## Working Principles
+
+- Think from first principles. Start from real requirements, code facts, and verification results; if the goal is unclear, discuss it with the user first.
+- Treat code, better than documentation, as the source of truth.
+- Before making code changes, read the relevant code and the most recent constraints, and follow the nearest `AGENTS.md` in the directory tree.
+- Keep changes focused. Do not slip in unrelated refactors along the way.
+
+## 本项目介绍
+名称：DSH-Customization-Settings
+这是一个通用 UI 自定义设置插件，为 DeepSeek Harness 提供自定义壁纸、主题色、字体等 UI 个性化设置，以及模糊材质，还包含任务终端与完成时的通知。
+
+### 主题
+对于主题色、字体、模糊材质等静态样式的修改，由于内置的 `ctx.theme` 功能受限，故全部采用 CSS 变量覆盖实现。
+注意：对于颜色变量，都需准备 **light 和 dark** 两套。
+
+### 创建新的界面时
+当你在 web 页面写新的 UI 界面时，请尽量按照 DSH 原有的 UI 组件编写。
+
+### 模糊材质
+核心使用 `backdrop-filter` 滤镜，以及适当的 `saturate` 饱和度增益。
+注意：当模糊材质背后的背景是动态的时候，根据实测，尽量不要将模糊半径设置超过 8px，否则会导致闪烁。
+模糊材质配套的半透明背景颜色，不要直接修改原有的 CSS 变量（例如禁止直接修改 bg-base 变量），应新建一个 CSS 变量，名称可使用原来的使用的变量加上 `-blur` 后缀。
+
+
 
 
 ## plan 流程规划
@@ -60,11 +87,6 @@ DSH 支持较多个 subagent。为平衡效率及功能设计，建议将子代�
 #### 提交点
 
 当一个提交点（commit point）的内容完成时，请提交————不要 push。
-提交按照你熟悉的“约定式提交”（Conventional Commits）进行。
+提交按照 Conventional Commits 进行。
 提交根据文档编写的代码时，请在提交信息中注明完成了文档的哪一部分。
 
-
-## 对于本项目
-
-### 对 DSH UI 的修改
-在自写各种 UI 时，请尽量按照 DSH 原有 UI 的风格。
